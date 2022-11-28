@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/visualizer.dir/visualizer.cpp.o -o ../bin/visualizer  /usr/lib/libpython3.10.so /usr/lib/libglfw.so.3.3 /usr/lib/libGLEW.so.2.2 /usr/lib/libGL.so 
