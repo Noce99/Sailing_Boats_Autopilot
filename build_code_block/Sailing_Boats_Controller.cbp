@@ -182,6 +182,9 @@
 		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/CMakeLists.txt">
 			<Option virtualFolder="CMake Files\Visualizer\"/>
 		</Unit>
+		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Colline.obj">
+			<Option virtualFolder="CMake Files\Visualizer\"/>
+		</Unit>
 		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Sail.obj">
 			<Option virtualFolder="CMake Files\Visualizer\"/>
 		</Unit>

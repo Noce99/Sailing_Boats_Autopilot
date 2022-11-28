@@ -24,6 +24,7 @@ target_link_libraries(visualizer ${GL_LIB})
 configure_file("./Sailing_Boat.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
 configure_file("./Sail_Boat_Without_Sails.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
 configure_file("./Sail.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
+configure_file("./Colline.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
 configure_file("./vertShader.glsl" ${PROJECT_BINARY_DIR}/bin COPYONLY)
 configure_file("./fragShader.glsl" ${PROJECT_BINARY_DIR}/bin COPYONLY)
 

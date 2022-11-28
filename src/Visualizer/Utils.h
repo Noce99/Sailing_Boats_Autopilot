@@ -125,3 +125,10 @@ float* goldSpecular(){
 float goldShininess(){
   return 51.2f;
 }
+
+glm::vec3 rotate(float x, float y, float z, glm::vec3 vec, float T){
+  return glm::mat3( x*x+(1-x*x)*cos(T),       x*y*(1-cos(T))-z*sin(T),   x*z*(1-cos(T))+y*sin(T),
+                    x*y*(1-cos(T))+z*sin(T),  y*y+(1-y*y)*cos(T),       y*z*(1-cos(T))-x*sin(T),
+                    x*z*(1-cos(T))-y*sin(T),  y*z*(1-cos(T))+x*sin(T),  z*z+(1-z*z)*cos(T)
+                  )*vec;
+}
