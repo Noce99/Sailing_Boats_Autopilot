@@ -4,6 +4,8 @@
 #include "matplotlibcpp.h"
 #include "SBA_socket.cpp"
 
+#define DT 0.01
+
 namespace plt = matplotlibcpp;
 using Eigen::Matrix2d;
 using Eigen::Matrix4d;
@@ -62,6 +64,7 @@ class Sailing_Boat_Model {
 	  	double y_v_dot = -1200;
 	  	double k_p_dot = -1000;
 	  	double n_r_dot = -2400;
+	  	double GM_t = 2.4;
 	  	Matrix4d J(){
 	  		return Matrix4d {	{cos(eta(3)),	-sin(eta(3))*cos(eta(2)), 	0, 	0},
 								{sin(eta(3)),	cos(eta(3))*cos(eta(2)), 	0, 	0},
@@ -86,8 +89,7 @@ class Sailing_Boat_Model {
 								{0, 		0, 			0,	0},
 								{0, 		0, 			0,	0}};
 		}
-		Matrix4d C_A(){
-			Vector4d my_nu_r = nu_r();
+		Matrix4d C_A(Vector4d my_nu_r){
 			return Matrix4d {	{0, 				0, 					0,		y_v_dot*my_nu_r(1)},
 								{0, 		0, 					0,		-x_u_dot*my_nu_r(0)},
 								{0, 		0, 					0,		0},
@@ -97,9 +99,11 @@ class Sailing_Boat_Model {
 						{0,		16,		0,	0},
 						{0,		0,		0,	0},
 						{0,		0,		0,	40}};
-		Vector4d D(){
-			Vector4d my_nu_r = nu_r();
+		Vector4d D(Vector4d my_nu_r){
 			return D_l * my_nu_r;
+		}
+		Vector4d g(){
+            return Vector4d(0, 0, 9.81*m*GM_t*sin(eta(2))*cos(eta(2)), 0);
 		}
 		double C_Ls(double alpha){
 		    double sign = alpha/abs(alpha);
@@ -125,15 +129,16 @@ class Sailing_Boat_Model {
 			}
 		}
 		Vector4d S(double lambda){
-		    std::cout << "Xi: " << eta(3) << std::endl;
+		    /*std::cout << "Xi: " << eta(3) << std::endl;
 		    std::cout << "----------------" << std::endl;
 		    std::cout << J_2D() << std::endl;
 		    std::cout << "----------------" << std::endl;
 		    std::cout << "WM.get_v_w(): " << WM.get_v_w() << std::endl;
 		    std::cout << "J_2D()*WM.get_v_w(): " << J_2D()*WM.get_v_w() << std::endl;
+		    */
 		    Vector2d V_ws = J_2D()*WM.get_v_w() - Vector2d(nu(0), nu(1)) - Vector2d(nu(3)*l_2*sin(lambda), -nu(3)*(l_1 + l_2*cos(lambda)+nu(2)*h_1));
 		    double beta_ws = atan2(V_ws(1), V_ws(0));
-		    std::cout << "Beta_ws: " << beta_ws << std::endl;
+		    //std::cout << "Beta_ws: " << beta_ws << std::endl;
 		    double alpha_s = beta_ws - lambda + M_PI;
 		    double R_n_air = sqrt(nu(0)*nu(0) + nu(1)*nu(1))*sqrt(A_s)/1.5111e-5;
             //double S_L = 0.5*rho_air*A_s*C_Ls(alpha_s)*V_ws.norm();
@@ -252,13 +257,31 @@ class Sailing_Boat_Model {
 	  		nu = initial_nu; // A deep copy is done: I have checked
 	  		CM = given_CM;
 	  		WM = given_WM;
-	  		std::cout << "--------------------" << std::endl;
-	  		std::cout << S(0) << std::endl;
-	  		std::cout << "--------------------" << std::endl;
-	  		std::cout << K() << std::endl;
-	  		std::cout << "--------------------" << std::endl;
-	  		std::cout << R(0) << std::endl;
-	  		std::cout << "--------------------" << std::endl;
+	  	}
+
+        void iteration(double lambda, double sigma){
+            Vector4d acceleration_coefficient = Vector4d(M_RB(0, 0) + M_A(0, 0), M_RB(1, 1) + M_A(1,1), M_RB(2, 2) + M_A(2, 2), M_RB(3, 3) + M_A(3, 3));
+            Vector4d my_nu_r = nu_r();
+            Vector4d equal_right_side = S(lambda) + K() + R(sigma) - C_RB()*nu - C_A(my_nu_r)*my_nu_r - D(my_nu_r) - g();
+            Vector4d acceleration = Vector4d(equal_right_side(0)/acceleration_coefficient(0), equal_right_side(1)/acceleration_coefficient(1), equal_right_side(2)/acceleration_coefficient(2), equal_right_side(3)/acceleration_coefficient(3));
+            nu(0) = nu(0) + DT * acceleration(0);
+            nu(1) = nu(1) + DT * acceleration(1);
+            nu(2) = nu(2) + DT * acceleration(2);
+            nu(3) = nu(3) + DT * acceleration(3);
+            eta(0) = eta(0) + DT * nu(0);
+            eta(1) = eta(1) + DT * nu(1);
+            eta(2) = eta(2) + DT * nu(2);
+            eta(3) = eta(3) + DT * nu(3);
+        }
+
+		Vector4d get_eta(){
+			return eta;
+		}
+
+		Vector4d get_nu(){
+			return nu;
+		}
+		void createGraphAboutCoefficient(){
             int n = 360;
             std::vector<double> x(n), ls(n), ds(n), lk(n), dk(n), lr(n), dr(n), standard_lc(n), standard_dc(n), Sx(n), Sy(n), Rx(n), Ry(n);
             double R_n_air = sqrt(nu(0)*nu(0) + nu(1)*nu(1))*sqrt(A_s)/1.5111e-5;
@@ -311,26 +334,17 @@ class Sailing_Boat_Model {
             plt::grid(true);
             plt::legend();
             plt::save("./R_vs_Sigma.png");
-
             plt::show();
-	  	}
-
-		Vector4d get_eta(){
-			return eta;
-		}
-
-		Vector4d get_nu(){
-			return nu;
 		}
 };
 
 int main(){
     MySocketServer MSS = MySocketServer();
-    int c = 0;
+    Sailing_Boat_Model SBM = Sailing_Boat_Model();
+    double ellapsed_time = 0;
     while(true){
-        MSS.send_data(Vector4d(c, c, c, M_PI/4));
-        c++;
+        MSS.send_data(SBM.get_eta()+Vector4d(1000.00000002, 100, 0.002, 1000000));
+        ellapsed_time += DT;
     }
-  	Sailing_Boat_Model SBM = Sailing_Boat_Model();
 }
 

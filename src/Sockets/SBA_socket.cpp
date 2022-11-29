@@ -19,6 +19,9 @@ using Eigen::Vector4d;
 #define MAXLINE 40
 #define ip_server "localhost"
 
+#define charsforvalues 20
+#define maxnumofvalues 20
+
 void error(const char *msg){
 	perror(msg);
 	exit(1);
@@ -70,7 +73,7 @@ class MySocketServer{
 
 	void send_data(Vector4d eta){
 	    char msg[300];
-	    sprintf(msg, "[%f,%f,%f,%f]", eta(0), eta(1), eta(2), eta(3));
+	    sprintf(msg, "[%.6f,%.6f,%.6f,%.6f]", eta(0), eta(1), eta(2), eta(3));
  	    if (sendto(serSockDes, msg, strlen(msg), 0, (struct sockaddr*)&cliAddr, cliAddrLen) < 0) {
             perror("sending error...\n");
             close(serSockDes);
@@ -92,10 +95,17 @@ class MySocketClient{
     std::string msg_string = "Hello!!!\n";
     const char * msg = msg_string.c_str();
     char buff[1024] = {0};
-
+	
+	char temp_number[charsforvalues];
+    int ii = 0;
+    int num_recived_values = 0;
+    double recived_values[maxnumofvalues];
 
     public:
     MySocketClient(){
+    	for (int i=0; i<maxnumofvalues; i++){
+    		recived_values[i] = 0.0;
+    	}
         //create a socket
         if ((cliSockDes = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
             perror("socket creation error...\n");
@@ -130,7 +140,7 @@ class MySocketClient{
         std::cout << std::endl;
    	}
 
-   	void reading(){
+   	Vector4d reading(){
    	    readStatus = recvfrom(cliSockDes, buff, 1024, 0, (struct sockaddr*)&serAddr, &serAddrLen);
         if (readStatus < 0) {
             perror("reading error...\n");
@@ -139,6 +149,23 @@ class MySocketClient{
         }
         //std::cout.write(buff, readStatus);
         //std::cout << std::endl;
+        ii=0;
+        num_recived_values=0;
+        for (int i=1; i<readStatus; i++){ // 1 because we don't care about parentesis
+        	if (buff[i] != ',' && buff[i] != ']'){
+        		temp_number[ii] = buff[i];
+        		ii++;
+        	}else{
+        		for (int iii=ii; iii<charsforvalues; iii++){
+        			temp_number[iii] = '0';
+        		}
+        		ii = 0;
+        		recived_values[num_recived_values] = std::stod(temp_number);
+        		std::cout << recived_values[num_recived_values] << std::endl;
+        		num_recived_values++;
+        	}
+        }
+        return Vector4d(recived_values[0], recived_values[1], recived_values[2], recived_values[3]);
    	}
 
    	void close_connection(){

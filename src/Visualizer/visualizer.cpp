@@ -105,7 +105,7 @@ void setupVertices(void){
     //VBO for normal vectors
     glBindBuffer(GL_ARRAY_BUFFER, vbo_boat[2]);
     glBufferData(GL_ARRAY_BUFFER, nvalues_boat.size()*4, &nvalues_boat[0], GL_STATIC_DRAW);
-    
+
     std::vector<glm::vec3> vert_sail = sail.getVertices();
     std::vector<glm::vec2> tex_sail = sail.getTextCoords();
     std::vector<glm::vec3> norm_sail = sail.getNormalVecs();
@@ -140,7 +140,7 @@ void setupVertices(void){
     //VBO for normal vectors
     glBindBuffer(GL_ARRAY_BUFFER, vbo_sail[2]);
     glBufferData(GL_ARRAY_BUFFER, nvalues_sail.size()*4, &nvalues_sail[0], GL_STATIC_DRAW);
-    
+
     std::vector<glm::vec3> vert_island = insland.getVertices();
     std::vector<glm::vec2> tex_island = insland.getTextCoords();
     std::vector<glm::vec3> norm_island = insland.getNormalVecs();
@@ -250,7 +250,7 @@ void display (GLFWwindow* window, double currentTime){
     glDepthFunc(GL_LEQUAL);
 
     glDrawArrays(GL_TRIANGLES, 0, boat.getNumVertices());
-    
+
     mMat = glm::translate(glm::mat4(1.0f), glm::vec3(boatLocX, boatLocY, boatLocZ));
     glm::vec4 new_y = rotation_phi*glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
     glm::mat4 rotation_lambda = glm::rotate(glm::mat4(1.0f), (float)(lambda), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -258,12 +258,12 @@ void display (GLFWwindow* window, double currentTime){
     mMat = mMat * rotation_phi;
     mMat = mMat * rotation_lambda;
     mvMat = vMat * mMat;
-    
+
     //Spedisco matrici allo shader
     glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
     glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-    
+
     //Associazione VBO
     glBindBuffer(GL_ARRAY_BUFFER, vbo_sail[0]);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -279,16 +279,16 @@ void display (GLFWwindow* window, double currentTime){
     glDepthFunc(GL_LEQUAL);
 
     glDrawArrays(GL_TRIANGLES, 0, sail.getNumVertices());
-    
+
     mMat = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
     mMat *= glm::scale(glm::mat4(1.0f), glm::vec3(10.f, 10.f, 10.f));
     mvMat = vMat * mMat;
-    
+
     //Spedisco matrici allo shader
     glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
     glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
     glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
-    
+
     //Associazione VBO
     glBindBuffer(GL_ARRAY_BUFFER, vbo_insland[0]);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -421,7 +421,7 @@ int main(void){
     glfwMakeContextCurrent(window);
     if (glewInit() != GLEW_OK){exit(EXIT_FAILURE);}
     glfwSwapInterval(1);
-    
+
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -430,8 +430,9 @@ int main(void){
 
     init(window);
 
+    Vector4d eta;
     while (!glfwWindowShouldClose(window)) {
-        MSC.reading();
+        eta = MSC.reading();
         display(window, glfwGetTime());
         glfwSwapBuffers(window);
         glfwPollEvents();
