@@ -4,274 +4,307 @@
 #include "matplotlibcpp.h"
 #include "SBA_socket.cpp"
 
-#define DT 0.01
+#define DT 0.00001
 
 namespace plt = matplotlibcpp;
 using Eigen::Matrix2d;
+using Eigen::Matrix3d;
 using Eigen::Matrix4d;
 using Eigen::Vector2d;
+using Eigen::Vector3d;
 using Eigen::Vector4d;
-
-class Current_Model {
-	private:
-		Vector2d v_c;
-	public:
-		Current_Model(Vector2d initial_v_c = Vector2d(0, 0)){
-			v_c = initial_v_c;
-		}
-		Vector2d get_v_c(){
-			return v_c;
-		}
-};
 
 class Wind_Model {
 	private:
-		Vector2d v_w;
+		double v_tw;
+		double alpha_tw;
 	public:
-		Wind_Model(Vector2d initial_v_w = Vector2d(0, 0)){
-			v_w = initial_v_w;
+		Wind_Model(double intensity=0, double direction=0){
+			v_tw = abs(intensity);
+			alpha_tw = direction;
 		}
-		Vector2d get_v_w(){
-			return v_w;
+		double get_v_tw(){
+			return v_tw;
 		}
+		double get_alpha_tw(){
+            return alpha_tw;
+        }
 };
 
 class Sailing_Boat_Model {
 	private:
 		Vector4d eta; // 		x, 		y, 		phi, 	xi
 		Vector4d nu; // 		u, 		v, 		p, 		r
-		Vector4d nu_r(){ // 	u_r, 	v_r, 	p_r, 	r_r
-			Vector2d nu_r_small = Vector2d(nu(0), nu(1)) - J_2D()*CM.get_v_c();
-			return  Vector4d(nu_r_small(0), nu_r_small(1), nu(2), nu(3));
-		}
+		Vector4d eta_dot;
+		Vector4d nu_dot;
+		// CONSTANTS
 		double rho_water = 1025;
 		double rho_air = 1.23;
-		double l_1 = -1.82;
-		double l_2 = 1.35;
-		double l_3 = -0.66;
-		double l_4 = 3.7;
-		double h_1 = 5.2;
-		double h_2 = 0.95;
-		double h_3 = 0.7;
-		double A_s = 22.8;
-		double A_k = 0.93;
-		double A_r = 0.3;
-		double t_max = 0.2;
-		double m = 1600;
-	  	double I_xx = 6800;
-	  	double I_zz = 8500;
-	  	double x_u_dot = -160;
-	  	double y_v_dot = -1200;
-	  	double k_p_dot = -1000;
-	  	double n_r_dot = -2400;
-	  	double GM_t = 2.4;
+        double a = -5.89;
+        double b = 8160;
+        double c = 12000;
+        double d = 20000;
+		double m = 25900;
+	  	double I_xx = 133690;
+	  	double I_zz = 24760;
+	  	double I_xz = 2180;
+	  	double x_u_dot = 970;
+	  	double y_v_dot = 17430;
+	  	double k_p_dot = 106500;
+	  	double n_r_dot = 101650;
+	  	double x_h = 0;
+        double y_h = 0;
+        double z_h = -1.18;
+	  	double A_k = 8.7;
+	  	double x_k = 0;
+	  	double y_k = 0;
+	  	double z_k = -0.58;
+	  	double AR_k = 1;
+	  	double A_s = 170;
+	  	double x_s = 0;
+	  	double y_s = 0;
+	  	double z_s = -11.58;
+	  	double AR_s = 3;
+	  	double x_sm = 0.6;
+	  	double x_m = 0.3;
+	  	double A_r = 1.17;
+	  	double x_r = -8.2;
+	  	double y_r = 0;
+	  	double z_r = -0.78;
+	  	double AR_r = 4.94;
+	  	double p0_sail_CL = -1.44183;
+		double p1_sail_CL = 0.35006;
+		double p2_sail_CL = -0.0410826;
+		double p3_sail_CL = 0.0018311;
+		double p0_sail_CD = -0.520349;
+		double p1_sail_CD = 0.120098;
+		double p2_sail_CD = -0.0131698;
+		double p3_sail_CD = 0.00051913;
+		double p0_kr_CL = -1.82637;
+		double p1_kr_CL = 0.430472;
+		double p2_kr_CL = -0.0453327;
+		double p3_kr_CL = 0.00181221;
+		double p0_kr_CD = -0.907082;
+		double p1_kr_CD = 0.106607;
+		double p2_kr_CD = -0.00416986;
+		double p0_frk = 0.0324864;
+		double p1_frk = 1.13068;
+	  	// VARIABLE
+	  	double v_ahx;
+	  	double v_ahy;
+	  	double v_ah;
+	  	double alpha_ah;
+	  	double v_aku;
+	  	double v_akv;
+	  	double v_ak;
+	  	double alpha_ak;
+	  	double corrected_keel_C_D;
+	  	double L_k;
+	  	double D_k;
+	  	double alpha_tw;
+	  	double v_awu;
+	  	double v_awv;
+	  	double v_aw;
+	  	double alpha_aw;
+	  	double alpha_s;
+	  	double corrected_sail_C_D;
+	  	double L_s;
+	  	double D_s;
+	  	double v_aru;
+	  	double v_arv;
+	  	double v_ar;
+	  	double alpha_ar;
+	  	double alpha_r;
+	  	double corrected_rudder_C_D;
+	  	double L_r;
+	  	double D_r;
+	  	Matrix4d inverse_M;
+	  	Matrix4d C;
 	  	Matrix4d J(){
 	  		return Matrix4d {	{cos(eta(3)),	-sin(eta(3))*cos(eta(2)), 	0, 	0},
 								{sin(eta(3)),	cos(eta(3))*cos(eta(2)), 	0, 	0},
-								{0,		0, 							1, 	0},
-								{0,		0, 							0, 	cos(eta(2))}};
+								{0,		        0, 		                    1,  0},
+								{0,		        0, 		                    0,  cos(eta(2))}};
 	  	}
 	  	Matrix2d J_2D(){
 	  		return Matrix2d {	{cos(eta(3)),			sin(eta(3))},
 								{-sin(eta(3))*cos(eta(2)),	cos(eta(3))*cos(eta(2))}};
 	  	}
-		Matrix4d M_RB{	{m, 			0, 			0, 		0},
-						{0, 			m, 	0, 		0},
-						{0, 			0, 	I_xx, 	0},
-						{0, 			0, 	0, 		I_zz}};
+		Matrix4d M_RB{	{m, 			0, 		0, 		0},
+						{0, 			m, 	    0, 		0},
+						{0, 			0, 	    I_xx, 	-I_xz},
+						{0, 			0, 	    -I_xz, 	I_zz}};
+
 		Matrix4d M_A{	{x_u_dot, 		0, 			0, 				0},
 						{0, 			y_v_dot, 	0, 				0},
-						{0, 			0, 	k_p_dot, 		0},
-						{0, 			0, 	0, 				n_r_dot}};
+						{0, 			0, 	        k_p_dot, 		0},
+						{0, 			0, 	        0, 				n_r_dot}};
+
 		Matrix4d C_RB(){
 			return Matrix4d {	{0, 		-m*nu(3), 	0,	0},
 								{m*nu(3), 	0, 			0,	0},
 								{0, 		0, 			0,	0},
 								{0, 		0, 			0,	0}};
 		}
-		Matrix4d C_A(Vector4d my_nu_r){
-			return Matrix4d {	{0, 				0, 					0,		y_v_dot*my_nu_r(1)},
-								{0, 		0, 					0,		-x_u_dot*my_nu_r(0)},
-								{0, 		0, 					0,		0},
-								{-y_v_dot*my_nu_r(1), 	x_u_dot*my_nu_r(0), 0,		0}};
+
+		Matrix4d C_A(){
+			return Matrix4d {	{0, 		        0, 					0,  -y_v_dot*nu(1)},
+								{0, 		        0, 					0,	x_u_dot*nu(0)},
+								{0, 		        0, 					0,	0},
+								{y_v_dot*nu(1), 	-x_u_dot*nu(0),     0,	0}};
 		}
-		Matrix4d D_l {	{10,	0,		0,	0},
-						{0,		16,		0,	0},
-						{0,		0,		0,	0},
-						{0,		0,		0,	40}};
-		Vector4d D(Vector4d my_nu_r){
-			return D_l * my_nu_r;
+		Vector4d D_hell_yaw(){
+		    return Vector4d(0, 0, c*eta_dot(2)*abs(eta_dot(2)), d*eta_dot(3)*abs(eta_dot(3))*cos(eta(2)));
+		}
+		Vector4d D_h(){
+            v_ahx = -nu(0)+nu(3)*y_h;
+            v_ahy = (-nu(1)-nu(3)*x_h+nu(2)*z_h)/cos(eta(2));
+            v_ah = sqrt(v_ahx*v_ahx + v_ahy*v_ahy);
+            alpha_ah = atan2(v_ahy, -v_ahx);
+            return Vector4d(F_rh(v_ah)*cos(alpha_ah),
+                            -F_rh(v_ah)*sin(alpha_ah)*cos(eta(2)),
+                            (-F_rh(v_ah)*sin(alpha_ah)*cos(eta(2)))*abs(z_h),
+                            F_rh(v_ah)*sin(alpha_ah)*cos(eta(2))*abs(x_h));
+		}
+		Vector4d D_keel(){// called D_k vector in the paper
+		    v_aku = -nu(0)+nu(3)*y_k;
+		    v_akv = -nu(1)-nu(3)*x_k+nu(2)*z_k;
+		    v_ak = sqrt(v_aku*v_aku + v_akv*v_akv);
+		    alpha_ak = atan2(v_akv, -v_aku);
+		    L_k = 0.5*rho_water*A_k*v_ak*v_ak*keel_C_L(alpha_ak);
+		    corrected_keel_C_D = keel_C_D(alpha_ak) + (keel_C_L(alpha_ak)*keel_C_L(alpha_ak))/(M_PI*AR_k);
+		    D_k = 0.5*rho_water*A_k*v_ak*v_ak*corrected_keel_C_D;
+		    return Vector4d(-L_k*sin(alpha_ak)+D_k*cos(alpha_ak),
+		                    -L_k*cos(alpha_ak)-D_k*sin(alpha_ak),
+		                    (-L_k*cos(alpha_ak)-D_k*sin(alpha_ak))*abs(z_k),
+		                    (L_k*cos(alpha_ak)+D_k*sin(alpha_ak))*abs(x_k));
+		}
+		Vector4d D(){
+			return D_keel()+D_h()+D_hell_yaw();
 		}
 		Vector4d g(){
-            return Vector4d(0, 0, 9.81*m*GM_t*sin(eta(2))*cos(eta(2)), 0);
+            return Vector4d(0, 0, a*eta(2)*eta(2)+b*eta(2), 0);
 		}
-		double C_Ls(double alpha){
-		    double sign = alpha/abs(alpha);
-			alpha = abs(alpha*180/M_PI);
-			if (alpha>=0 && alpha<=100){
-				return sign*(-1.877662 + 0.265759*alpha - 0.006852092*alpha*alpha + 0.00006764791*alpha*alpha*alpha - 2.366522e-7*alpha*alpha*alpha*alpha);
-			}else{
-				std::cout << "Request of calculation of C_Ls for an impossible value: " << alpha << std::endl;
-				return 0;
+		Vector4d tau_s(double delta_s){
+            v_awu = WM.get_v_tw()*cos(WM.get_alpha_tw()-eta(3))-nu(0)+nu(3)*y_s;
+            v_awv = WM.get_v_tw()*sin(WM.get_alpha_tw()-eta(3))*cos(eta(2))-nu(1)-nu(3)*x_s+nu(2)*z_s;
+            v_aw = sqrt(v_awu*v_awu + v_awv*v_awv);
+            alpha_aw = atan2(v_awv, -v_awu);
+            alpha_s = alpha_aw - delta_s;
+            L_s = 0.5*rho_air*A_s*v_aw*v_aw*sail_C_L(alpha_s);
+            corrected_sail_C_D = sail_C_D(alpha_s) + (sail_C_L(alpha_s)*sail_C_L(alpha_s))/(M_PI*AR_s);
+            D_s = 0.5*rho_air*A_s*v_aw*v_aw*corrected_sail_C_D;
+            return Vector4d(L_s*sin(alpha_aw)-D_s*cos(alpha_aw),
+                            L_s*cos(alpha_aw)+D_s*sin(alpha_aw),
+                            (L_s*cos(alpha_aw)+D_s*sin(alpha_aw))*abs(z_s),
+                            -(L_s*sin(alpha_aw)-D_s*cos(alpha_aw))*x_sm*sin(delta_s)+(L_s*cos(alpha_aw)+D_s*sin(alpha_aw))*(x_m-x_sm*cos(delta_s)));
+		}
+		Vector4d tau_r(double delta_r){
+            v_aru = -nu(0)+nu(3)*y_r;
+            v_arv = -nu(1)-nu(3)*x_r+nu(2)*z_r;
+            v_ar = sqrt(v_aru*v_aru + v_arv*v_arv);
+            alpha_ar = atan2(v_arv, -v_aru);
+            alpha_r = alpha_ar-delta_r;
+            L_r = 0.5*rho_water*A_r*v_ar*v_ar*rudder_C_L(alpha_r);
+            corrected_rudder_C_D = rudder_C_D(alpha_r) + (rudder_C_L(alpha_r)*rudder_C_L(alpha_r))/(M_PI*AR_r);
+            D_r = 0.5*rho_water*A_r*v_ar*v_ar*corrected_rudder_C_D;
+            return Vector4d(L_r*sin(alpha_ar)-D_r*cos(alpha_ar),
+                            L_r*cos(alpha_ar)+D_r*sin(alpha_ar),
+                            (L_r*cos(alpha_ar)+D_r*sin(alpha_ar))*abs(z_r),
+                            -(L_r*cos(alpha_ar)+D_r*sin(alpha_ar))*abs(x_r));
+		}
+		Vector4d tau(double delta_s, double delta_r){
+		    return tau_s(delta_s)+tau_r(delta_r);
+		}
+		double sail_C_L(double alpha){
+			while (alpha>M_PI){
+				alpha -= 2*M_PI;
 			}
-		}
-		double C_Fs(double R_n){
-			return 0.075/((log10(R_n)-2)*(log10(R_n)-2));
-		}
-		double C_Ds(double alpha, double R_n){
-			alpha = abs(alpha*180/M_PI);
-			if (alpha>=0 && alpha<=100){
-				double C_Ds0 = 0.1638985 + 0.00133082*alpha + 0.00001135329*alpha*alpha + 0.000001185599*alpha*alpha*alpha;
-				return C_Ds0 + 2*(1+2*(t_max/sqrt(A_s)))*C_Fs(R_n);
-			}else{
-				std::cout << "Request of calculation of C_Ds for an impossible value: " << alpha << std::endl;
-				return 0;
+			while (alpha<-M_PI){
+				alpha += 2*M_PI;
 			}
-		}
-		Vector4d S(double lambda){
-		    /*std::cout << "Xi: " << eta(3) << std::endl;
-		    std::cout << "----------------" << std::endl;
-		    std::cout << J_2D() << std::endl;
-		    std::cout << "----------------" << std::endl;
-		    std::cout << "WM.get_v_w(): " << WM.get_v_w() << std::endl;
-		    std::cout << "J_2D()*WM.get_v_w(): " << J_2D()*WM.get_v_w() << std::endl;
-		    */
-		    Vector2d V_ws = J_2D()*WM.get_v_w() - Vector2d(nu(0), nu(1)) - Vector2d(nu(3)*l_2*sin(lambda), -nu(3)*(l_1 + l_2*cos(lambda)+nu(2)*h_1));
-		    double beta_ws = atan2(V_ws(1), V_ws(0));
-		    //std::cout << "Beta_ws: " << beta_ws << std::endl;
-		    double alpha_s = beta_ws - lambda + M_PI;
-		    double R_n_air = sqrt(nu(0)*nu(0) + nu(1)*nu(1))*sqrt(A_s)/1.5111e-5;
-            //double S_L = 0.5*rho_air*A_s*C_Ls(alpha_s)*V_ws.norm();
-            //double S_D = 0.5*rho_air*A_s*C_Ds(alpha_s, R_n_air)*V_ws.norm();
-            double S_L = 0.5*rho_air*A_s*general_C_L(alpha_s)*V_ws.norm();
-            double S_D = 0.5*rho_air*A_s*general_C_D(alpha_s)*V_ws.norm();
-            double S_x = -S_L*sin(beta_ws)+S_D*cos(beta_ws);
-			double S_y = S_L*cos(beta_ws)+S_D*sin(beta_ws);
-			double S_x_p = S_x*cos(eta(3))+S_y*sin(eta(3));
-			double S_y_p = -S_x*sin(eta(3))+S_y*cos(eta(3));
-			return Vector4d(S_x, S_y, h_1*S_y, S_x_p*l_2*sin(lambda)-S_y_p*(l_1+l_2*cos(lambda)));
-            //return Vector4d(S_L, S_D, h_1*S_y, S_x_p*l_2*sin(lambda)-S_y_p*(l_1+l_2*cos(lambda)));
-		}
-		double C_Lk(double alpha){
-			alpha = alpha*180/M_PI;
-			if (alpha>=-10 && alpha<=10){
-				return 0.1400141*alpha - 0.000677465*alpha*alpha*alpha;
-			}else{
-				std::cout << "Request of calculation of C_Lk for an impossible value: " << alpha << std::endl;
-				return 0;
-			}
-		}
-		double C_Dk(double alpha){
-			alpha = alpha*180/M_PI;
-			if (alpha>=-10 && alpha<=10){
-				return 0.01 - 0.00003333333*alpha*alpha + 0.000009333333*alpha*alpha*alpha*alpha;
-			}else{
-				std::cout << "Request of calculation of C_Dk for an impossible value: " << alpha << std::endl;
-				return 0;
-			}
-		}
-		Vector4d K(){
-		    Vector4d my_nu_r = nu_r();
-            Vector2d V_ck = - Vector2d(my_nu_r(0), my_nu_r(1)) - Vector2d(0, -nu(3)*l_3-nu(2)*h_2);
-            double beta_ck = atan2(V_ck(1), V_ck(0));
-            double alpha_k = -beta_ck+M_PI;
-            double R_n_k = sqrt(nu(0)*nu(0) + nu(1)*nu(1))*sqrt(A_k)/9.7937e-7;
-            //double K_L = 0.5*rho_water*A_k*C_Lk(alpha_k)*V_ck.norm();
-            //double K_D = 0.5*rho_water*A_k*C_Dk(alpha_k)*V_ck.norm();
-            double K_L = 0.5*rho_water*A_k*general_C_L(alpha_k)*V_ck.norm();
-            double K_D = 0.5*rho_water*A_k*general_C_D(alpha_k)*V_ck.norm();
-            double K_x = K_L*sin(beta_ck)+K_D*cos(beta_ck);
-			double K_y = -K_L*cos(beta_ck)+K_D*sin(beta_ck);
-			return Vector4d(K_x, K_y, -h_2*K_y, -l_3*K_y);
-		}
-		double C_Lr(double alpha){
-			alpha = alpha*180/M_PI;
-			if (alpha>=-15 && alpha<=15){
-				return 0.1419403*alpha - 0.0003181921*alpha*alpha*alpha;
-			}else{
-				std::cout << "Request of calculation of C_Lr for an impossible value: " << alpha << std::endl;
-				return 0;
-			}
-		}
-		double C_Dr(double alpha){
-			alpha = alpha*180/M_PI;
-			if (alpha>=-15 && alpha<=15){
-				return 0.017 - 0.00006111111*alpha*alpha + 0.000001911111*alpha*alpha*alpha*alpha;
-			}else{
-				std::cout << "Request of calculation of C_Dr for an impossible value: " << alpha << std::endl;
-				return 0;
-			}
-		}
-		Vector4d R(double sigma){
-		    Vector4d my_nu_r = nu_r();
-		    Vector2d V_cr = - Vector2d(my_nu_r(0), my_nu_r(1)) - Vector2d(0, -nu(3)*l_4-nu(2)*h_3);
-		    double beta_cr = atan2(V_cr(1), V_cr(0));
-		    double alpha_r = -beta_cr+sigma+M_PI;
-		    double R_n_r = sqrt(nu(0)*nu(0) + nu(1)*nu(1))*sqrt(A_r)/9.7937e-7;
-		    //double R_L = 0.5*rho_water*A_r*C_Lr(alpha_r)*V_cr.norm();
-		    //double R_D = 0.5*rho_water*A_r*C_Dr(alpha_r)*V_cr.norm();
-		    double R_L = 0.5*rho_water*A_r*general_C_L(alpha_r)*V_cr.norm();
-		    double R_D = 0.5*rho_water*A_r*general_C_D(alpha_r)*V_cr.norm();
-		    double R_x = R_L*sin(beta_cr)+R_D*cos(beta_cr);
-			double R_y = -R_L*cos(beta_cr)+R_D*sin(beta_cr);
-			return Vector4d(R_x, R_y, -h_3*R_y, -l_4*R_y);
-			//return Vector4d(R_L, R_D, R_D, R_D);
-		}
-		double general_C_L(double alpha){
-            // y = -0.01702952 + 0.07040326*x - 0.001261044*x^2 + 0.000007347746*x^3 - 2.40808e-8*x^4 + 5.627903e-11*x^5
-            alpha = alpha*180/M_PI;
-            while (alpha > 180){
-                alpha = alpha - 360;
-            }
-            while (alpha < -180){
-                alpha = alpha + 360;
-            }
-            int sign = int(alpha/abs(alpha));
-            alpha = abs(alpha);
-            double cl = -0.01702952 + 0.07040326*alpha - 0.001261044*alpha*alpha + 0.000007347746*alpha*alpha*alpha - 2.40808e-8*alpha*alpha*alpha*alpha + 5.627903e-11*alpha*alpha*alpha*alpha*alpha;
-            if (sign < 0){
-                return -cl;
+			if (alpha>=0){
+            	return p3_sail_CL*pow(abs(alpha), 9)+p2_sail_CL*pow(abs(alpha), 7)+p1_sail_CL*pow(abs(alpha), 5)+p0_sail_CL*pow(abs(alpha), 3)+(-pow(M_PI, 2)*p0_sail_CL-pow(M_PI, 4)*p1_sail_CL-pow(M_PI, 6)*p2_sail_CL-pow(M_PI, 8)*p3_sail_CL)*abs(alpha);
             }else{
-                return cl;
+            	return -(p3_sail_CL*pow(abs(alpha), 9)+p2_sail_CL*pow(abs(alpha), 7)+p1_sail_CL*pow(abs(alpha), 5)+p0_sail_CL*pow(abs(alpha), 3)+(-pow(M_PI, 2)*p0_sail_CL-pow(M_PI, 4)*p1_sail_CL-pow(M_PI, 6)*p2_sail_CL-pow(M_PI, 8)*p3_sail_CL)*abs(alpha));
             }
 		}
-		double general_C_D(double alpha){
-            alpha = alpha*180/M_PI;
-            while (alpha > 180){
-                alpha = alpha - 360;
-            }
-            while (alpha < -180){
-                alpha = alpha + 360;
-            }
-            alpha = abs(alpha);
-            return -0.004239731*alpha + 0.0009123078*alpha*alpha - 0.00001340114*alpha*alpha*alpha + 7.230022e-8*alpha*alpha*alpha*alpha - 1.377991e-10*alpha*alpha*alpha*alpha*alpha;
+		double sail_C_D(double alpha){
+            while (alpha>M_PI){
+				alpha -= 2*M_PI;
+			}
+			while (alpha<-M_PI){
+				alpha += 2*M_PI;
+			}
+			alpha = abs(alpha);
+			return p3_sail_CD*pow(alpha, 10)+p2_sail_CD*pow(alpha, 8)+p1_sail_CD*pow(alpha, 6)+p0_sail_CD*pow(alpha, 4)+((-0.1-4*p0_sail_CD*pow(M_PI, 3)-6*p1_sail_CD*pow(M_PI, 5)-8*p2_sail_CD*pow(M_PI, 7)-10*p3_sail_CD*pow(M_PI, 9))/(2*M_PI))*pow(alpha, 2)+0.1;
 		}
-		Current_Model CM;
+		double rudder_C_L(double alpha){
+            while (alpha>M_PI){
+				alpha -= 2*M_PI;
+			}
+			while (alpha<-M_PI){
+				alpha += 2*M_PI;
+			}
+			if (alpha>=0){
+				alpha = abs(alpha);
+            	return p3_kr_CL*pow(alpha, 9)+p2_kr_CL*pow(alpha, 7)+p1_kr_CL*pow(alpha, 5)+p0_kr_CL*pow(alpha, 3)+(-pow(M_PI, 2)*p0_kr_CL-pow(M_PI, 4)*p1_kr_CL-pow(M_PI, 6)*p2_kr_CL-pow(M_PI, 8)*p3_kr_CL)*alpha;
+            }else{
+            	alpha = abs(alpha);
+            	return -(p3_kr_CL*pow(alpha, 9)+p2_kr_CL*pow(alpha, 7)+p1_kr_CL*pow(alpha, 5)+p0_kr_CL*pow(alpha, 3)+(-pow(M_PI, 2)*p0_kr_CL-pow(M_PI, 4)*p1_kr_CL-pow(M_PI, 6)*p2_kr_CL-pow(M_PI, 8)*p3_kr_CL)*alpha);
+            }
+		}
+		double rudder_C_D(double alpha){
+		 	while (alpha>M_PI){
+				alpha -= 2*M_PI;
+			}
+			while (alpha<-M_PI){
+				alpha += 2*M_PI;
+			}
+			alpha = abs(alpha);
+            return p2_kr_CD*pow(alpha, 8)+p1_kr_CD*pow(alpha, 6)+p0_kr_CD*pow(alpha, 4)+((-p0_kr_CD*pow(M_PI, 4)-p1_kr_CD*pow(M_PI, 6)-p2_kr_CD*pow(M_PI, 8))/(pow(M_PI, 2)))*pow(alpha, 2);
+		}
+		double keel_C_L(double alpha){
+            return rudder_C_L(alpha);
+		}
+		double keel_C_D(double alpha){
+            return rudder_C_D(alpha);
+		}
+		double F_rh(double v_ah){
+			if (v_ah<0){
+				std::cout << "Warning!!! During calculation of F_rh value (" << v_ah << ") out of bound [0;6]";
+				v_ah = 0;
+			}else if (v_ah>6){
+				std::cout << "Warning!!! During calculation of F_rh value (" << v_ah << ") out of bound [0;6]";
+				v_ah = 6;
+			}
+            return p0_frk*exp(p1_frk*v_ah)*pow(10, 3);
+		}
 		Wind_Model WM;
   	public:
-	  	Sailing_Boat_Model(	Vector4d initial_eta = Vector4d {0, 0, 0, M_PI/4},
+	  	Sailing_Boat_Model(	Vector4d initial_eta = Vector4d {0, 0, 0, 0},
 	  						Vector4d initial_nu = Vector4d {0, 0, 0, 0},
-	  						Current_Model given_CM = Current_Model(Vector2d(-1, 0)),
-	  						Wind_Model given_WM = Wind_Model(Vector2d(-1, 0))){
+	  						Wind_Model given_WM = Wind_Model()){
 	  		eta = initial_eta; // A deep copy is done: I have checked
 	  		nu = initial_nu; // A deep copy is done: I have checked
-	  		CM = given_CM;
 	  		WM = given_WM;
+	  		createGraphAboutCoefficient();
 	  	}
 
-        void iteration(double lambda, double sigma){
-            Vector4d acceleration_coefficient = Vector4d(M_RB(0, 0) + M_A(0, 0), M_RB(1, 1) + M_A(1,1), M_RB(2, 2) + M_A(2, 2), M_RB(3, 3) + M_A(3, 3));
-            Vector4d my_nu_r = nu_r();
-            Vector4d equal_right_side = S(lambda) + K() + R(sigma) - C_RB()*nu - C_A(my_nu_r)*my_nu_r - D(my_nu_r) - g();
-            Vector4d acceleration = Vector4d(equal_right_side(0)/acceleration_coefficient(0), equal_right_side(1)/acceleration_coefficient(1), equal_right_side(2)/acceleration_coefficient(2), equal_right_side(3)/acceleration_coefficient(3));
-            nu(0) = nu(0) + DT * acceleration(0);
-            nu(1) = nu(1) + DT * acceleration(1);
-            nu(2) = nu(2) + DT * acceleration(2);
-            nu(3) = nu(3) + DT * acceleration(3);
-            eta(0) = eta(0) + DT * nu(0);
-            eta(1) = eta(1) + DT * nu(1);
-            eta(2) = eta(2) + DT * nu(2);
-            eta(3) = eta(3) + DT * nu(3);
+        Vector4d integration(double delta_s, double delta_r){
+            inverse_M = (M_RB+M_A).inverse();
+            C = C_RB()+C_A();
+            eta_dot = J()*nu;
+            nu_dot = -inverse_M*C*nu-inverse_M*D()-inverse_M*g()+inverse_M*tau(delta_s, delta_r);
+            eta(0) = eta(0) + DT*eta_dot(0);
+            eta(1) = eta(1) + DT*eta_dot(1);
+            eta(2) = eta(2) + DT*eta_dot(2);
+            eta(3) = eta(3) + DT*eta_dot(3);
+            nu(0) = nu(0) + DT*nu_dot(0);
+            nu(1) = nu(1) + DT*nu_dot(1);
+            nu(2) = nu(2) + DT*nu_dot(2);
+            nu(3) = nu(3) + DT*nu_dot(3);
+            return nu_dot;
         }
 
 		Vector4d get_eta(){
@@ -282,68 +315,72 @@ class Sailing_Boat_Model {
 			return nu;
 		}
 		void createGraphAboutCoefficient(){
-            int n = 360;
-            std::vector<double> x(n), ls(n), ds(n), lk(n), dk(n), lr(n), dr(n), standard_lc(n), standard_dc(n), Sx(n), Sy(n), Rx(n), Ry(n);
-            double R_n_air = sqrt(nu(0)*nu(0) + nu(1)*nu(1))*sqrt(A_s)/1.5111e-5;
+            int n = 361;
+            int m = 61;
+            std::vector<double> x(n), CLs(n), CDs(n), CLrk(n), CDrk(n), FRK(m), z(m);
             Vector4d s, r;
-            for(int i=-180; i<180; ++i) {
+            for(int i=-180; i<181; ++i) {
                 x.at(i+180) = i;
-                /*ls.at(i+180) = C_Ls(i*M_PI/180);
-                ds.at(i+180) = C_Ds(i*M_PI/180, R_n_air);
-                lk.at(i+180) = C_Lk(i*M_PI/180);
-                dk.at(i+180) = C_Dk(i*M_PI/180);
-                lr.at(i+180) = C_Lr(i*M_PI/180);
-                dr.at(i+180) = C_Dr(i*M_PI/180);*/
-                standard_lc.at(i+180) = general_C_L(i*M_PI/180);
-                standard_dc.at(i+180) = general_C_D(i*M_PI/180);
-                s = S(i*M_PI/180);
-                r = R(i*M_PI/180);
-                Sx.at(i+180) = s(0);
-                Sy.at(i+180) = s(1);
-                Rx.at(i+180) = r(0);
-                Ry.at(i+180) = r(1);
+                CLs.at(i+180) = sail_C_L(i*M_PI/180.);
+                CDs.at(i+180) = sail_C_D(i*M_PI/180.);
+                CLrk.at(i+180) = rudder_C_L(i*M_PI/180.);
+                CDrk.at(i+180) = rudder_C_D(i*M_PI/180.);
+            }
+            for(int i=0; i<61; ++i) {
+            	z.at(i) = i/10.;
+            	FRK.at(i) = F_rh(i/10.);
             }
 
             // Set the size of output image to 1200x780 pixels
             // plt::figure_size(1200, 780);
             // Plot line from given x and y data. Color is selected automatically.
-            /*plt::plot(x, ls);
-            plt::plot(x, ds);
-            plt::save("./LD_s.png");
             plt::figure();
-            plt::plot(x, lk);
-            plt::plot(x, dk);
-            plt::save("./LD_k.png");
-            plt::figure();
-            plt::plot(x, lr);
-            plt::plot(x, dr);
-            plt::save("./LD_r.png");
-            plt::figure();*/
-            plt::plot(x, standard_lc);
-            plt::plot(x, standard_dc);
-            plt::save("./LC_LD_standard.png");
-            plt::figure();
-            plt::plot(x, Sx, {{"label", "S_x"}});
-            plt::plot(x, Sy, {{"label", "S_y"}});
+            plt::plot(x, CLs, {{"label", "CLs"}});
+            plt::plot(x, CDs, {{"label", "CDs"}});
             plt::grid(true);
             plt::legend();
-            plt::save("./S_vs_Lambda.png");
+            plt::save("./Coefficient_S.png");
             plt::figure();
-            plt::plot(x, Rx, {{"label", "R_x"}});
-            plt::plot(x, Ry, {{"label", "R_y"}});
+            plt::plot(x, CLrk, {{"label", "CLrk"}});
+            plt::plot(x, CDrk, {{"label", "CDrk"}});
             plt::grid(true);
             plt::legend();
-            plt::save("./R_vs_Sigma.png");
+            plt::save("./Coefficient_RK.png");
+            plt::figure();
+            plt::plot(z, FRK, {{"label", "FRK"}});
+            plt::grid(true);
+            plt::legend();
+            plt::save("./Coefficient_FRK.png");
             plt::show();
 		}
 };
 
 int main(){
     MySocketServer MSS = MySocketServer();
-    Sailing_Boat_Model SBM = Sailing_Boat_Model();
+    Wind_Model WM = Wind_Model(10, 0);
+    Sailing_Boat_Model SBM = Sailing_Boat_Model(Vector4d(0, 0, 0, 0), Vector4d(0, 0, 0, 0), WM);
     double ellapsed_time = 0;
+    std::vector<double> sending_parameters(8);
+    Vector4d my_eta;
+    double alpha_tw;
+    Vector4d acceleration;
     while(true){
-        MSS.send_data(SBM.get_eta()+Vector4d(1000.00000002, 100, 0.002, 1000000));
+        acceleration = SBM.integration(-M_PI/2, 0);
+        if ((int)(ellapsed_time/DT) % 10000 == 0){
+            std::cout << "acceleration = [" << acceleration(0) << "; " << acceleration(1) << "; " << acceleration(2) << "; " << acceleration(3) << "]" << std::endl;
+            std::cout << "Time: " << ellapsed_time << " s " << std::endl;
+        }
+        my_eta = SBM.get_eta();
+        alpha_tw = WM.get_alpha_tw();
+        sending_parameters[0] = my_eta(0);
+        sending_parameters[1] = my_eta(1);
+        sending_parameters[2] = my_eta(2);
+        sending_parameters[3] = my_eta(3);
+        sending_parameters[4] = 0;
+        sending_parameters[5] = alpha_tw;
+        sending_parameters[6] = atan2(acceleration(1), acceleration(0)); //lambda
+        sending_parameters[7] = 0; //sigma
+        MSS.send_data(sending_parameters);
         ellapsed_time += DT;
     }
 }

@@ -35,6 +35,9 @@ GLuint vao[numVAOs];
 GLuint vbo_sail[numVBOs];
 GLuint vbo_boat[numVBOs];
 GLuint vbo_insland[numVBOs];
+GLuint vbo_windarrow[numVBOs];
+GLuint vbo_currentarrow[numVBOs];
+GLuint vbo_forcearrow[numVBOs];
 
 //Variabili allocate in init così non devono essere allocate durante il rendering
 GLuint mvLoc, projLoc, nLoc;
@@ -69,6 +72,11 @@ void installLights(glm::mat4);
 ImportedModel sail("Sail.obj");
 ImportedModel boat("Sail_Boat_Without_Sails.obj");
 ImportedModel insland("Colline.obj");
+ImportedModel windarrow("Wind_Arrow.obj");
+ImportedModel currentarrow("Current_Arrow.obj");
+ImportedModel forcearrow("Force_Arrow.obj");
+
+std::vector<double> recived_values = std::vector<double>(maxnumofvalues);
 
 void setupVertices(void){
     std::vector<glm::vec3> vert_boat = boat.getVertices();
@@ -175,7 +183,113 @@ void setupVertices(void){
     //VBO for normal vectors
     glBindBuffer(GL_ARRAY_BUFFER, vbo_insland[2]);
     glBufferData(GL_ARRAY_BUFFER, nvalues_insland.size()*4, &nvalues_insland[0], GL_STATIC_DRAW);
+
+    std::vector<glm::vec3> vert_windarrow = windarrow.getVertices();
+    std::vector<glm::vec2> tex_windarrow = windarrow.getTextCoords();
+    std::vector<glm::vec3> norm_windarrow = windarrow.getNormalVecs();
+    numObjVertices = windarrow.getNumVertices();
+
+    std::vector<float> pvalues_windarrow; //vertex positions
+    std::vector<float> tvalues_windarrow; //texture coordinates
+    std::vector<float> nvalues_windarrow; //normal vectors
+
+    for (int i=0; i<numObjVertices; i++){
+        pvalues_windarrow.push_back((vert_windarrow[i]).x);
+        pvalues_windarrow.push_back((vert_windarrow[i]).y);
+        pvalues_windarrow.push_back((vert_windarrow[i]).z);
+        tvalues_windarrow.push_back((tex_windarrow[i]).s);
+        tvalues_windarrow.push_back((tex_windarrow[i]).t);
+        nvalues_windarrow.push_back((norm_windarrow[i]).x);
+        nvalues_windarrow.push_back((norm_windarrow[i]).y);
+        nvalues_windarrow.push_back((norm_windarrow[i]).z);
+    }
+    glGenVertexArrays(1, vao);
+    glBindVertexArray(vao[0]);
+    glGenBuffers(numVBOs, vbo_windarrow);
+
+    //VBO for vertex location
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_windarrow[0]);
+    glBufferData(GL_ARRAY_BUFFER, pvalues_windarrow.size()*4, &pvalues_windarrow[0], GL_STATIC_DRAW);
+
+    //VBO for texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_windarrow[1]);
+    glBufferData(GL_ARRAY_BUFFER, tvalues_windarrow.size()*4, &tvalues_windarrow[0], GL_STATIC_DRAW);
+
+    //VBO for normal vectors
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_windarrow[2]);
+    glBufferData(GL_ARRAY_BUFFER, nvalues_windarrow.size()*4, &nvalues_windarrow[0], GL_STATIC_DRAW);
+
+    std::vector<glm::vec3> vert_currentarrow = currentarrow.getVertices();
+    std::vector<glm::vec2> tex_currentarrow = currentarrow.getTextCoords();
+    std::vector<glm::vec3> norm_currentarrow = currentarrow.getNormalVecs();
+    numObjVertices = currentarrow.getNumVertices();
+
+    std::vector<float> pvalues_currentarrow; //vertex positions
+    std::vector<float> tvalues_currentarrow; //texture coordinates
+    std::vector<float> nvalues_currentarrow; //normal vectors
+
+    for (int i=0; i<numObjVertices; i++){
+        pvalues_currentarrow.push_back((vert_currentarrow[i]).x);
+        pvalues_currentarrow.push_back((vert_currentarrow[i]).y);
+        pvalues_currentarrow.push_back((vert_currentarrow[i]).z);
+        tvalues_currentarrow.push_back((tex_currentarrow[i]).s);
+        tvalues_currentarrow.push_back((tex_currentarrow[i]).t);
+        nvalues_currentarrow.push_back((norm_currentarrow[i]).x);
+        nvalues_currentarrow.push_back((norm_currentarrow[i]).y);
+        nvalues_currentarrow.push_back((norm_currentarrow[i]).z);
+    }
+    glGenVertexArrays(1, vao);
+    glBindVertexArray(vao[0]);
+    glGenBuffers(numVBOs, vbo_currentarrow);
+
+    //VBO for vertex location
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_currentarrow[0]);
+    glBufferData(GL_ARRAY_BUFFER, pvalues_currentarrow.size()*4, &pvalues_currentarrow[0], GL_STATIC_DRAW);
+
+    //VBO for texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_currentarrow[1]);
+    glBufferData(GL_ARRAY_BUFFER, tvalues_currentarrow.size()*4, &tvalues_currentarrow[0], GL_STATIC_DRAW);
+
+    //VBO for normal vectors
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_currentarrow[2]);
+    glBufferData(GL_ARRAY_BUFFER, nvalues_currentarrow.size()*4, &nvalues_currentarrow[0], GL_STATIC_DRAW);
+
+    std::vector<glm::vec3> vert_forcearrow = forcearrow.getVertices();
+    std::vector<glm::vec2> tex_forcearrow = forcearrow.getTextCoords();
+    std::vector<glm::vec3> norm_forcearrow = forcearrow.getNormalVecs();
+    numObjVertices = forcearrow.getNumVertices();
+
+    std::vector<float> pvalues_forcearrow; //vertex positions
+    std::vector<float> tvalues_forcearrow; //texture coordinates
+    std::vector<float> nvalues_forcearrow; //normal vectors
+
+    for (int i=0; i<numObjVertices; i++){
+        pvalues_forcearrow.push_back((vert_forcearrow[i]).x);
+        pvalues_forcearrow.push_back((vert_forcearrow[i]).y);
+        pvalues_forcearrow.push_back((vert_forcearrow[i]).z);
+        tvalues_forcearrow.push_back((tex_forcearrow[i]).s);
+        tvalues_forcearrow.push_back((tex_forcearrow[i]).t);
+        nvalues_forcearrow.push_back((norm_forcearrow[i]).x);
+        nvalues_forcearrow.push_back((norm_forcearrow[i]).y);
+        nvalues_forcearrow.push_back((norm_forcearrow[i]).z);
+    }
+    glGenVertexArrays(1, vao);
+    glBindVertexArray(vao[0]);
+    glGenBuffers(numVBOs, vbo_forcearrow);
+
+    //VBO for vertex location
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_forcearrow[0]);
+    glBufferData(GL_ARRAY_BUFFER, pvalues_forcearrow.size()*4, &pvalues_forcearrow[0], GL_STATIC_DRAW);
+
+    //VBO for texture coordinates
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_forcearrow[1]);
+    glBufferData(GL_ARRAY_BUFFER, tvalues_forcearrow.size()*4, &tvalues_forcearrow[0], GL_STATIC_DRAW);
+
+    //VBO for normal vectors
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_forcearrow[2]);
+    glBufferData(GL_ARRAY_BUFFER, nvalues_forcearrow.size()*4, &nvalues_forcearrow[0], GL_STATIC_DRAW);
 }
+
 
 void init (GLFWwindow* window){
     renderingProgram = createShaderProgram((char *)"vertShader.glsl",(char *) "fragShader.glsl");
@@ -191,8 +305,6 @@ void init (GLFWwindow* window){
 }
 
 void display (GLFWwindow* window, double currentTime){
-    double phi = cos((float)currentTime*0.1);
-    double xi = cos((float)currentTime*0.6);
     double lambda = cos((float)currentTime*3);
     glClear(GL_DEPTH_BUFFER_BIT);
     glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -210,13 +322,13 @@ void display (GLFWwindow* window, double currentTime){
     //cameraX = (28+20*cos((float)currentTime))*cos((float)currentTime*0.6);
     //cameraY = (7+5*cos((float)currentTime));
 
-    boatLocX = (float)(10*cos((float)currentTime*1));
+    //boatLocX = (float)(10*cos((float)currentTime*1));
 
     //Costruisco la mvMat
-    vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(cameraX+lookingDirX, cameraY+lookingDirY, cameraZ+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
-    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(boatLocX, boatLocY, boatLocZ));
-    glm::mat4 rotation_phi = glm::rotate(glm::mat4(1.0f), (float)(phi), glm::vec3(1.0f,0.0f,0.0f));
-    glm::mat4 rotation_xi = glm::rotate(glm::mat4(1.0f), (float)(xi), glm::vec3(0.0f, 1.0f, 0.0f));
+    vMat = glm::lookAt(glm::vec3(cameraX+recived_values[0], cameraY, cameraZ+recived_values[1]), glm::vec3(cameraX+recived_values[0]+lookingDirX, cameraY+lookingDirY, cameraZ+recived_values[1]+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
+    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(recived_values[0], boatLocY, recived_values[1]));
+    glm::mat4 rotation_phi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[2]), glm::vec3(1.0f,0.0f,0.0f));
+    glm::mat4 rotation_xi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[3]), glm::vec3(0.0f, 1.0f, 0.0f));
     mMat = mMat * rotation_xi;
     mMat = mMat * rotation_phi;
 
@@ -251,7 +363,7 @@ void display (GLFWwindow* window, double currentTime){
 
     glDrawArrays(GL_TRIANGLES, 0, boat.getNumVertices());
 
-    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(boatLocX, boatLocY, boatLocZ));
+    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(recived_values[0], boatLocY, recived_values[1]));
     glm::vec4 new_y = rotation_phi*glm::vec4(0.0f, 1.0f, 0.0f, 1.0f);
     glm::mat4 rotation_lambda = glm::rotate(glm::mat4(1.0f), (float)(lambda), glm::vec3(0.0f, 1.0f, 0.0f));
     mMat = mMat * rotation_xi;
@@ -279,6 +391,88 @@ void display (GLFWwindow* window, double currentTime){
     glDepthFunc(GL_LEQUAL);
 
     glDrawArrays(GL_TRIANGLES, 0, sail.getNumVertices());
+
+    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(recived_values[0], boatLocY+10, recived_values[1]));
+    rotation_lambda = glm::rotate(glm::mat4(1.0f), (float)(recived_values[5]+M_PI/2), glm::vec3(0.0f, 1.0f, 0.0f));
+    mMat = mMat * rotation_lambda;
+    mMat *= glm::scale(glm::mat4(1.0f), glm::vec3(0.1f, 0.1f, 0.1f));
+    mvMat = vMat * mMat;
+
+    //Spedisco matrici allo shader
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+    glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+
+    //Associazione VBO
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_windarrow[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_windarrow[2]);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(1);
+
+    // glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+
+    glDrawArrays(GL_TRIANGLES, 0, windarrow.getNumVertices());
+
+    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(recived_values[0], boatLocY, recived_values[1]));
+    rotation_lambda = glm::rotate(glm::mat4(1.0f), (float)(recived_values[4]+M_PI/2), glm::vec3(0.0f, 1.0f, 0.0f));
+    mMat = mMat * rotation_lambda;
+    mMat *= glm::scale(glm::mat4(1.0f), glm::vec3(0.1f, 0.1f, 0.1f));
+    mvMat = vMat * mMat;
+
+    //Spedisco matrici allo shader
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+    glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+
+    //Associazione VBO
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_currentarrow[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_currentarrow[2]);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(1);
+
+    // glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+
+    glDrawArrays(GL_TRIANGLES, 0, currentarrow.getNumVertices());
+
+    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(recived_values[0], boatLocY+4, recived_values[1]));
+    rotation_lambda = glm::rotate(glm::mat4(1.0f), (float)(recived_values[6]+M_PI/2), glm::vec3(0.0f, 1.0f, 0.0f));
+    mMat = mMat * rotation_lambda;
+    mMat *= glm::scale(glm::mat4(1.0f), glm::vec3(0.1f, 0.1f, 0.1f));
+    mvMat = vMat * mMat;
+
+    //Spedisco matrici allo shader
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+    glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+
+    //Associazione VBO
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_forcearrow[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_forcearrow[2]);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(1);
+
+    // glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+
+    glDrawArrays(GL_TRIANGLES, 0, forcearrow.getNumVertices());
+
 
     mMat = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
     mMat *= glm::scale(glm::mat4(1.0f), glm::vec3(10.f, 10.f, 10.f));
@@ -430,9 +624,8 @@ int main(void){
 
     init(window);
 
-    Vector4d eta;
     while (!glfwWindowShouldClose(window)) {
-        eta = MSC.reading();
+        recived_values = MSC.reading();
         display(window, glfwGetTime());
         glfwSwapBuffers(window);
         glfwPollEvents();

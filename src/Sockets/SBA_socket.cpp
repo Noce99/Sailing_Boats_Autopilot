@@ -14,6 +14,8 @@
 
 using Eigen::Vector4d;
 
+
+#ifndef SBA_socket
 #define SERVER_IP "127.0.0.1"
 #define PORT    8080
 #define MAXLINE 40
@@ -21,6 +23,8 @@ using Eigen::Vector4d;
 
 #define charsforvalues 20
 #define maxnumofvalues 20
+#define SBA_socket
+#endif
 
 void error(const char *msg){
 	perror(msg);
@@ -71,9 +75,9 @@ class MySocketServer{
         }
     }
 
-	void send_data(Vector4d eta){
+	void send_data(std::vector<double> sp){
 	    char msg[300];
-	    sprintf(msg, "[%.6f,%.6f,%.6f,%.6f]", eta(0), eta(1), eta(2), eta(3));
+	    sprintf(msg, "[%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f]", sp[0], sp[1], sp[2], sp[3], sp[4], sp[5], sp[6], sp[7]);
  	    if (sendto(serSockDes, msg, strlen(msg), 0, (struct sockaddr*)&cliAddr, cliAddrLen) < 0) {
             perror("sending error...\n");
             close(serSockDes);
@@ -99,7 +103,7 @@ class MySocketClient{
 	char temp_number[charsforvalues];
     int ii = 0;
     int num_recived_values = 0;
-    double recived_values[maxnumofvalues];
+    std::vector<double> recived_values = std::vector<double>(maxnumofvalues);
 
     public:
     MySocketClient(){
@@ -140,7 +144,7 @@ class MySocketClient{
         std::cout << std::endl;
    	}
 
-   	Vector4d reading(){
+   	std::vector<double> reading(){
    	    readStatus = recvfrom(cliSockDes, buff, 1024, 0, (struct sockaddr*)&serAddr, &serAddrLen);
         if (readStatus < 0) {
             perror("reading error...\n");
@@ -161,11 +165,11 @@ class MySocketClient{
         		}
         		ii = 0;
         		recived_values[num_recived_values] = std::stod(temp_number);
-        		std::cout << recived_values[num_recived_values] << std::endl;
+        		//std::cout << recived_values[num_recived_values] << std::endl;
         		num_recived_values++;
         	}
         }
-        return Vector4d(recived_values[0], recived_values[1], recived_values[2], recived_values[3]);
+        return recived_values;
    	}
 
    	void close_connection(){

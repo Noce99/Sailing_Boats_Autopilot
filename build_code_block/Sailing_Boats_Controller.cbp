@@ -185,6 +185,12 @@
 		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Colline.obj">
 			<Option virtualFolder="CMake Files\Visualizer\"/>
 		</Unit>
+		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Current_Arrow.obj">
+			<Option virtualFolder="CMake Files\Visualizer\"/>
+		</Unit>
+		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Force_Arrow.obj">
+			<Option virtualFolder="CMake Files\Visualizer\"/>
+		</Unit>
 		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Sail.obj">
 			<Option virtualFolder="CMake Files\Visualizer\"/>
 		</Unit>
@@ -192,6 +198,9 @@
 			<Option virtualFolder="CMake Files\Visualizer\"/>
 		</Unit>
 		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Sailing_Boat.obj">
+			<Option virtualFolder="CMake Files\Visualizer\"/>
+		</Unit>
+		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/Wind_Arrow.obj">
 			<Option virtualFolder="CMake Files\Visualizer\"/>
 		</Unit>
 		<Unit filename="/home/enrico/Documenti/Uni/AI/Sailing_Boats_Autopilot/src/Visualizer/fragShader.glsl">
