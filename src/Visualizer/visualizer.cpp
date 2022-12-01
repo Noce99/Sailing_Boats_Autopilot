@@ -305,7 +305,7 @@ void init (GLFWwindow* window){
 }
 
 void display (GLFWwindow* window, double currentTime){
-    double lambda = cos((float)currentTime*3);
+    double lambda = recived_values[4]/*cos((float)currentTime*3)*/;
     glClear(GL_DEPTH_BUFFER_BIT);
     glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT); //Clear the background to black
@@ -325,7 +325,8 @@ void display (GLFWwindow* window, double currentTime){
     //boatLocX = (float)(10*cos((float)currentTime*1));
 
     //Costruisco la mvMat
-    vMat = glm::lookAt(glm::vec3(cameraX+recived_values[0], cameraY, cameraZ+recived_values[1]), glm::vec3(cameraX+recived_values[0]+lookingDirX, cameraY+lookingDirY, cameraZ+recived_values[1]+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
+    vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(cameraX+lookingDirX, cameraY+lookingDirY, cameraZ+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
+    //vMat = glm::lookAt(glm::vec3(cameraX+recived_values[0], cameraY, cameraZ+recived_values[1]), glm::vec3(cameraX+recived_values[0]+lookingDirX, cameraY+lookingDirY, cameraZ+recived_values[1]+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
     mMat = glm::translate(glm::mat4(1.0f), glm::vec3(recived_values[0], boatLocY, recived_values[1]));
     glm::mat4 rotation_phi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[2]), glm::vec3(1.0f,0.0f,0.0f));
     glm::mat4 rotation_xi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[3]), glm::vec3(0.0f, 1.0f, 0.0f));
