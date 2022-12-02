@@ -479,18 +479,28 @@ class Sailing_Boat_Model {
 int main(){
     MySocketServer MSS = MySocketServer();
     Wind_Model WM = Wind_Model(10, 0);
-    Sailing_Boat_Model SBM = Sailing_Boat_Model(Vector4d(0, 0, 0, 0), Vector4d(2, 0, 0, 0), WM);
+    Sailing_Boat_Model SBM = Sailing_Boat_Model(Vector4d(0, 0, 0, 0), Vector4d(0, 0, 0, 0), WM);
     double ellapsed_time = 0;
     std::vector<double> sending_parameters(8);
+    std::vector<double> recived_input(2);
     Vector4d my_eta;
     double alpha_tw;
     Vector4d acceleration;
-    double sail_positon = M_PI/2;
+    double sail_positon = 0;
+    double rudder_positon = 0;
     while(true){
-        acceleration = SBM.integration(sail_positon, 0);
+        acceleration = SBM.integration(sail_positon, rudder_positon);
+        if ((int)(ellapsed_time/DT) % 1000 == 0){
+            recived_input = MSS.recive_input();
+            if (recived_input[0] != -1000){
+                sail_positon = recived_input[0];
+                rudder_positon = recived_input[1];
+            }
+        }
         if ((int)(ellapsed_time/DT) % 10000 == 0){
             std::cout << "acceleration = [" << acceleration(0) << "; " << acceleration(1) << "; " << acceleration(2) << "; " << acceleration(3) << "]" << std::endl;
             std::cout << "Time: " << ellapsed_time << " s " << std::endl;
+            std::cout << "recived from the visualizer: " << sail_positon << ", " << rudder_positon << std::endl;
             if (ellapsed_time>10){
                 //break;
             }
@@ -503,8 +513,8 @@ int main(){
         sending_parameters[3] = my_eta(3);
         sending_parameters[4] = sail_positon;
         sending_parameters[5] = alpha_tw;
-        sending_parameters[6] = atan2(acceleration(1), acceleration(0)); //lambda
-        sending_parameters[7] = 0; //sigma
+        sending_parameters[6] = atan2(acceleration(1), acceleration(0));
+        sending_parameters[7] = rudder_positon;
         MSS.send_data(sending_parameters);
         ellapsed_time += DT;
     }
