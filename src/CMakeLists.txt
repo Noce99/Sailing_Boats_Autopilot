@@ -3,7 +3,11 @@ cmake_minimum_required(VERSION 3.7.1)
 PROJECT(Sailing_Boats_Controller)
 
 SET(MY_CURRENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+SET(MY_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR})
+MESSAGE(STATUS "Build Dir: " ${MY_BUILD_DIR})
 MESSAGE(STATUS "Current Dir: " ${MY_CURRENT_DIR})
+
+file(MAKE_DIRECTORY ${MY_BUILD_DIR}/bin)
 
 MACRO(SUBDIRLIST result curdir)
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)
