@@ -564,4 +564,5 @@ int main(){
     srand(1626);
     Simple_Maze SM = Simple_Maze("n=20", 20, iteration);
     SM.learn();
+    SM.show_what_learn();
 }
