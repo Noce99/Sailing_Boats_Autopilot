@@ -4,14 +4,15 @@
 #include "matplotlibcpp.h"
 #include <string.h>
 
-#define MAZE_SIZE 20
-#define NUMBER_OF_WALLS 100
+#define MAZE_SIZE 100
+#define NUMBER_OF_WALLS 300
 #define STARTING_X 0
 #define STARTING_Y 0
-#define FINISH_X 19
-#define FINISH_Y 19
+#define FINISH_X 99
+#define FINISH_Y 99
 #define NUMBER_OF_DIGIT 3
 #define NUMBER_OF_DIGIT_FULL 3
+#define theta 0.04
 
 namespace plt = matplotlibcpp;
 
@@ -80,6 +81,73 @@ class my_queue{
 
 };
 
+class PQueue{
+    #define multiplier 1000
+    std::vector<std::vector<int>> data = std::vector<std::vector<int>>(0); // Inside Vector: [P, x, y, a]
+    int max_size;
+    public:
+    PQueue(int my_max_size){
+        max_size = my_max_size;
+    }
+
+    int P;
+    std::vector<std::vector<int>> element = std::vector<std::vector<int>>(1);
+    std::vector<std::vector<int>>::iterator ptr;
+    void add(double double_P, int x, int y, int a){
+        P = (int)(double_P*multiplier);
+        element[0] = {P, x, y, a};
+        ptr = data.begin();
+        if (data.size() != 0){
+            for (int i=0; i<data.size(); i++){
+                if (data[i][0] < P){
+                    advance(ptr, i);
+                    copy(element.begin(), element.end(), inserter(data, ptr));
+                    break;
+                }
+                if (i==data.size()-1){
+                    data.push_back(element[0]);
+                    break;
+                }
+            }
+        }else{
+            data.push_back(element[0]);
+        }
+        if (data.size()>max_size){
+            data.erase(data.end());
+        }
+        // print_pqueue();
+    }
+
+    std::vector<int> result;
+    std::vector<int> first(){
+        result = data.front();
+        data.erase(data.begin());
+        // print_pqueue();
+        return result;
+    }
+
+
+    void print_pqueue(){
+        std::vector<std::vector<int>>::iterator ptr;
+        std::cout << "PQueue: [";
+        for (ptr = data.begin(); ptr < data.end(); ptr++){
+            std::cout << "(" << (*ptr)[0] << ", " << (*ptr)[1] << ", " << (*ptr)[2] << ", " << (*ptr)[3] << "), ";
+        }
+        std::cout << "]" << std::endl;
+    }
+
+    bool not_empty(){
+        if (data.size() > 0 ){
+            return true;
+        }
+        return false;
+    }
+
+    int size(){
+        return data.size();
+    }
+};
+
 class Simple_Maze{
 
     double Q[MAZE_SIZE][MAZE_SIZE][4];
@@ -104,6 +172,8 @@ class Simple_Maze{
     int zero_epsilon_episode;
     int random_actions;
     int iterations;
+    int around[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
+    int around_move[4] = {2, 3, 0, 1};
 	
 	std::vector<double> t, move;
 	std::string name;
@@ -504,7 +574,7 @@ class Simple_Maze{
             if (verbose){
                 print_maze(s[0], s[1]);
                 std:: cout << "Reward = " << reward << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             iterations ++;
         }
@@ -516,21 +586,133 @@ class Simple_Maze{
         	print_all();
         	std:: cout << "[" << num_of_episode << "]Iteration in the episode: " << iterations << std::endl;
         	std::cout << "Random actions: " << random_actions << std::endl;
+        }else{
+            std:: cout << "[" << num_of_episode << "]Iteration in the episode: " << iterations << std::endl;;
         }
         //print_Q();
         num_of_episode++;
         return iterations;
     }
     
-    void learn(){
+    int run_episode_prioritize_sweeping(bool verbose){
+    	random_actions = 0;
+        s[0] = STARTING_X;
+        s[1] = STARTING_Y;
+        for (int x=0; x < MAZE_SIZE; x++){
+        	for (int y=0; y < MAZE_SIZE; y++){
+        		Place_Already_Visited[x][y] = false;
+        	}
+        }
+        bool finished_episode = false;
+        int iterations = 0;
+        PQueue pqueue = PQueue(n*2);
+        double P;
+        std::vector<int> element;
+        int x, y;
+
+        while(!finished_episode){
+        	Place_Already_Visited[s[0]][s[1]] = true;
+            action = epsilon_greedy_action(s[0], s[1]);
+            reward = enviroment(action);
+            P = abs(reward+gamma*Q[s_prime[0]][s_prime[1]][find_best_action(s_prime[0], s_prime[1])]-Q[s[0]][s[1]][action]);
+            // std::cout << "Fuori:" << P << std::endl;
+            if (P>theta){
+                pqueue.add(P, s[0], s[1], action);
+            }
+            Model[s[0]][s[1]][action][0] = s_prime[0];
+            Model[s[0]][s[1]][action][1] = s_prime[1];
+            Model[s[0]][s[1]][action][2] = reward;
+            Observed_State[s[0]][s[1]] = true;
+            Observed_Action[s[0]][s[1]][action] = true;
+            if (s_prime[0] == FINISH_X && s_prime[1] == FINISH_Y){
+                finished_episode = true;
+            }
+            state_before_planning[0] = s_prime[0];
+            state_before_planning[1] = s_prime[1];
+            for (int i=0; i<n; i++){
+                if (!pqueue.not_empty()){
+                    break;
+                }
+                element = pqueue.first();
+                s[0] = element[1];
+                s[1] = element[2];
+                action = element[3];;
+                s_prime[0] = (int)(Model[s[0]][s[1]][action][0]);
+                s_prime[1] = (int)(Model[s[0]][s[1]][action][1]);
+                reward = Model[s[0]][s[1]][action][2];
+                Q[s[0]][s[1]][action] += alpha*(reward+gamma*Q[s_prime[0]][s_prime[1]][find_best_action(s_prime[0], s_prime[1])]-Q[s[0]][s[1]][action]);
+                for (int ii=0; ii<4; ii++){
+                    x = s[0] + around[ii][0];
+                    y = s[1] + around[ii][1];
+                    action = around_move[ii];
+                    if (x>=0 && y>=0 && x<MAZE_SIZE && y<MAZE_SIZE && Observed_Action[x][y][action]){
+                        reward = Model[x][y][action][2];
+                        P = abs(reward+gamma*Q[s[0]][s[1]][find_best_action(s[0], s[1])]-Q[x][y][action]);
+                        // std::cout << "Dentro: " << P << std::endl;
+                        if (P>theta){
+                            pqueue.add(P, x, y, action);
+                        }
+                    }
+                }
+            }
+            s[0] = state_before_planning[0];
+            s[1] = state_before_planning[1];
+            if (verbose){
+                print_maze(s[0], s[1]);
+                std::cout << "Reward = " << reward << std::endl;
+                std::cout << "Size of Queue = " <<  pqueue.size() << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            iterations ++;
+            /*if (iterations % 1000 == 0){
+                std::cout << "Size of Queue = " <<  pqueue.size() << std::endl;
+            }*/
+        }
+        epsilon = -starting_epsilon/(double)(zero_epsilon_episode)*num_of_episode + starting_epsilon;
+        if (epsilon < 0){
+        	epsilon = 0;
+        }
+        if (verbose){
+        	print_all();
+        	std:: cout << "[" << num_of_episode << "]Iteration in the episode: " << iterations << std::endl;
+        	std::cout << "Random actions: " << random_actions << "(epsilon = " << epsilon << ")" << std::endl;
+        }else{
+            std:: cout << "[" << num_of_episode << "]Iteration in the episode: " << iterations << std::endl;
+        }
+        //print_Q();
+        num_of_episode++;
+        return iterations;
+    }
+
+    void learn(bool verbose){
     	for (int iter=0; iter<iterations; iter++){
 			t.at(iter) = iter;
-		    move.at(iter) = run_episode(false);
+		    move.at(iter) = run_episode(verbose);
     	}
     	plt::figure();
+    	plt::title(name);
+    	plt::xlabel("Episodes");
+    	plt::ylabel("Step for Escape");
     	plt::plot(t, move, {{"label", "Moves"}});
     	plt::grid(true);
     	plt::save("./"+name+".png");
+    	//print_Q();
+    	std::cout << "Done! [" << move.at(iterations-1) << "]" << std::endl;
+    }
+
+    void learn_prioritize_sweeping(bool verbose){
+    	for (int iter=0; iter<iterations; iter++){
+			t.at(iter) = iter;
+		    move.at(iter) = run_episode_prioritize_sweeping(verbose);
+    	}
+    	plt::figure();
+    	plt::title(name);
+    	plt::xlabel("Episodes");
+    	plt::ylabel("Step for Escape");
+    	plt::plot(t, move, {{"label", "Moves"}});
+    	plt::grid(true);
+    	plt::save("./"+name+".png");
+    	//print_Q();
     	std::cout << "Done! [" << move.at(iterations-1) << "]" << std::endl;
     }
 	
@@ -544,6 +726,16 @@ class Simple_Maze{
 		run_episode(true);
 	}
 	
+	void show_what_learn_prioritize_sweeping(){
+		std::cout << "Starting showing the path founded in\n3..." << std::endl;
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::cout << "2..." << std::endl;
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::cout << "1..." << std::endl;
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		run_episode_prioritize_sweeping(true);
+	}
+
     void human_control(){
         s[0] = STARTING_X;
         s[1] = STARTING_Y;
@@ -558,11 +750,15 @@ class Simple_Maze{
         }
     }
 };
-	
-#define iteration 500
+
+#define iteration 3000
 int main(){
     srand(1626);
-    Simple_Maze SM = Simple_Maze("n=20", 20, iteration);
-    SM.learn();
-    SM.show_what_learn();
+    Simple_Maze SM = Simple_Maze("n=20 my_queue", 20, iteration);
+    SM.learn(false);
+    srand(1626);
+    Simple_Maze SM_prioritize_sweeping = Simple_Maze("n=20 prioritize_sweeping", 20, iteration);
+    SM_prioritize_sweeping.learn_prioritize_sweeping(false);
+    //SM.show_what_learn();
+    //SM.show_what_learn_prioritize_sweeping();
 }
