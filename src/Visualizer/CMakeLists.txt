@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.4.0 FATAL_ERROR)
 
 add_executable(visualizer visualizer.cpp)
+add_executable(world_visualizer world_visualizer.cpp)
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Python3 COMPONENTS Development NumPy)
@@ -21,6 +22,10 @@ target_link_libraries(visualizer glfw)
 target_link_libraries(visualizer ${GLEW_LIB})
 target_link_libraries(visualizer ${GL_LIB})
 
+target_link_libraries(world_visualizer glfw)
+target_link_libraries(world_visualizer ${GLEW_LIB})
+target_link_libraries(world_visualizer ${GL_LIB})
+
 MACRO(ADDOBJ curdir)
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*.obj)
   SET(objlist "")
@@ -30,7 +35,7 @@ MACRO(ADDOBJ curdir)
   MESSAGE(STATUS "OBJs:")
   FOREACH(obj ${objlist})
   	MESSAGE(STATUS "\t" ${obj})
-  	configure_file(${obj} ${PROJECT_BINARY_DIR}/bin/ COPYONLY)
+  	configure_file(${curdir}/${obj} ${PROJECT_BINARY_DIR}/bin/ COPYONLY)
   ENDFOREACH()
 ENDMACRO()
 
@@ -47,22 +52,8 @@ MACRO(ADDGLSL curdir)
   ENDFOREACH()
 ENDMACRO()
 
-ADDOBJ(${CMAKE_CURRENT_SOURCE_DIR})
+ADDOBJ(${CMAKE_CURRENT_SOURCE_DIR}/../../resources/objs)
 ADDGLSL(${CMAKE_CURRENT_SOURCE_DIR})
-
-
-#configure_file("./Sailing_Boat.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Sail_Boat_Without_Sails.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Sail.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Colline.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Wind_Arrow.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Current_Arrow.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Force_Arrow.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Rudder.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./AntiClock_Momentum.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./Clock_Momentum.obj" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./vertShader.glsl" ${PROJECT_BINARY_DIR}/bin COPYONLY)
-#configure_file("./fragShader.glsl" ${PROJECT_BINARY_DIR}/bin COPYONLY)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 

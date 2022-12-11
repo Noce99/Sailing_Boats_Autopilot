@@ -796,6 +796,12 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
     lookingDirZ = newlookingDir.z;
     backmousex = xpos;
     backmousey = ypos;
+
+    std::cout << "backpos: [" << backmousex << "; " << backmousey << "]" << std::endl;
+    std::cout << "pos: [" << xpos << "; " << ypos << "]" << std::endl;
+    std::cout << "theta: [" << thetax << "; " << thetay << "]" << std::endl;
+    std::cout << "LokkingDir : [" << lookingDirX << ", " << lookingDirY << ", " << lookingDirZ << "]" << std::endl;
+
     //cout << xpos << ";" << ypos << endl;
   }
 }
