@@ -5,6 +5,7 @@ add_executable(world_visualizer world_visualizer.cpp)
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Python3 COMPONENTS Development NumPy)
+find_package(OpenCV REQUIRED)
 
 target_link_libraries(visualizer Eigen3::Eigen)
 
@@ -15,6 +16,7 @@ find_package(glfw3 3.3 REQUIRED)
 include_directories(/usr/include/GL/)
 include_directories(../Utils)
 include_directories(../Sockets)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 find_library(GLEW_LIB NAMES glew)
 find_library(GL_LIB NAMES GL)
@@ -25,6 +27,7 @@ target_link_libraries(visualizer ${GL_LIB})
 target_link_libraries(world_visualizer glfw)
 target_link_libraries(world_visualizer ${GLEW_LIB})
 target_link_libraries(world_visualizer ${GL_LIB})
+target_link_libraries(world_visualizer ${OpenCV_LIBS})
 
 MACRO(ADDOBJ curdir)
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*.obj)
@@ -48,12 +51,12 @@ MACRO(ADDGLSL curdir)
   MESSAGE(STATUS "GLSLs:")
   FOREACH(glsl ${glsllist})
   	MESSAGE(STATUS "\t" ${glsl})
-  	configure_file(${glsl} ${PROJECT_BINARY_DIR}/bin/ COPYONLY)
+  	configure_file(${curdir}/${glsl} ${PROJECT_BINARY_DIR}/bin/shaders COPYONLY)
   ENDFOREACH()
 ENDMACRO()
 
-ADDOBJ(${CMAKE_CURRENT_SOURCE_DIR}/../../resources/objs)
-ADDGLSL(${CMAKE_CURRENT_SOURCE_DIR})
+#ADDOBJ(${CMAKE_CURRENT_SOURCE_DIR}/../../resources/objs)
+ADDGLSL(${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 

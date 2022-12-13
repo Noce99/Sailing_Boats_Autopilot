@@ -9,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "Utils.h"
 #include "sphere.cpp"
+#include <opencv2/opencv.hpp>
 
 using namespace std;
 
@@ -19,9 +20,15 @@ using namespace std;
 
 #define PASSOVISUALE 0.1f
 #define PASSOCAMERA 0.8f
+#define PASSOZOOM 0.1f
+
+#define LIGHTDISTANCE 5.
 
 float cameraX , cameraY, cameraZ;
 float lookingDirX, lookingDirY, lookingDirZ;
+float lambda, delta;
+float zoom = 3;
+float tmp_X, tmp_Z;
 
 float backmousex=0, backmousey=0;
 bool mouseblocked = false;
@@ -117,6 +124,7 @@ void init (GLFWwindow* window){
     aspect = (float)width / (float)height;
     pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); //1.0472 radians = 60 degrees
     lookingDirX = 0; lookingDirY = 0; lookingDirZ = 1;
+    lambda = 0; delta = 0;
 }
 
 void display_vbo(int i, double x, double y, double z){
@@ -201,7 +209,14 @@ void display (GLFWwindow* window, double currentTime){
     //boatLocX = (float)(10*cos((float)currentTime*1));
 
     //Costruisco la mvMat
-    vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(cameraX+lookingDirX, cameraY+lookingDirY, cameraZ+lookingDirZ), glm::vec3(0.0f, 1.0f, 0.0f));
+    tmp_X = cos(lambda);
+    tmp_Z = sin(lambda);
+    cameraX = zoom*tmp_X*(cos(delta)+tmp_Z*tmp_Z*(1-cos(delta)))-zoom*tmp_Z*tmp_Z*tmp_X*(1-cos(delta));
+    cameraY = zoom*tmp_X*tmp_X*sin(delta)+zoom*tmp_Z*tmp_Z*sin(delta);
+    cameraZ = -zoom*tmp_X*tmp_X*tmp_Z*(1-cos(delta))+zoom*tmp_Z*(cos(delta)+tmp_X*tmp_X*(1-cos(delta)));
+   
+    
+    vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(0, 0, 0), glm::vec3(0.0f, 1.0f, 0.0f));
 
     // vMat = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, -8));
     //glm::mat4 rotation_phi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[2]), glm::vec3(1.0f,0.0f,0.0f));
@@ -211,12 +226,16 @@ void display (GLFWwindow* window, double currentTime){
 
 
     //Set up lights
-    currentLightPos = glm::vec3(cos((float)currentTime*5.)*initialLightLoc.x-sin((float)currentTime*5.)*initialLightLoc.z, initialLightLoc.y,
-                                cos((float)currentTime*5.)*initialLightLoc.z+sin((float)currentTime*5.)*initialLightLoc.x);
+    //currentLightPos = glm::vec3(cos((float)currentTime*5.)*initialLightLoc.x-sin((float)currentTime*5.)*initialLightLoc.z, initialLightLoc.y,
+    //                            cos((float)currentTime*5.)*initialLightLoc.z+sin((float)currentTime*5.)*initialLightLoc.x);
+    currentLightPos = glm::vec3(LIGHTDISTANCE*tmp_X*(cos(delta)+tmp_Z*tmp_Z*(1-cos(delta)))-LIGHTDISTANCE*tmp_Z*tmp_Z*tmp_X*(1-cos(delta)),
+     							LIGHTDISTANCE*tmp_X*tmp_X*sin(delta)+LIGHTDISTANCE*tmp_Z*tmp_Z*sin(delta),
+     							-LIGHTDISTANCE*tmp_X*tmp_X*tmp_Z*(1-cos(delta))+LIGHTDISTANCE*tmp_Z*(cos(delta)+tmp_X*tmp_X*(1-cos(delta))));
     installLights(vMat);
 
     display_vbo(0, 0, 0, 0);
-    std::cout << "[" << lookingDirX << "; " << lookingDirY << "; " << lookingDirZ << "]" << std::endl;
+    simple_display_vbo(1, sphere.get_index(0)[0], sphere.get_index(0)[1], sphere.get_index(0)[2], 0.01);
+    simple_display_vbo(1, sphere.get_index(1000)[0], sphere.get_index(1000)[1], sphere.get_index(1000)[2], 0.01);
 }
 
 void installLights(glm::mat4 vMat){
@@ -270,16 +289,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
     }
     if (glfwGetKey(window, 265) == GLFW_PRESS){//freccia su
-
+		delta -= PASSOVISUALE;
     }
     if (glfwGetKey(window, 264) == GLFW_PRESS){//freccia giu
-
+		delta += PASSOVISUALE;
     }
     if (glfwGetKey(window, 263) == GLFW_PRESS){//freccia sinistra
-
+		lambda += PASSOVISUALE;
     }
     if (glfwGetKey(window, 262) == GLFW_PRESS){//freccia destra
-
+		lambda -= PASSOVISUALE;
     }
     if (glfwGetKey(window, 87) == GLFW_PRESS){//W
         cameraX += lookingDirX*PASSOCAMERA;
@@ -327,7 +346,27 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
   }
 }
 
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset){
+	zoom += yoffset*PASSOZOOM;
+	if (zoom < 1.1){
+		zoom = 1.1;
+	}
+}
+
+
 int main(void){
+
+	cv::Mat image;
+    image = cv::imread("n=20.png", 1 );
+    if ( !image.data ){
+        printf("No image data \n");
+        return -1;
+    }
+    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE);
+    cv::imshow("Display Image", image);
+    cv::waitKey(0);
+
+	
     if (!glfwInit()) {exit(EXIT_FAILURE);}
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -338,6 +377,7 @@ int main(void){
 
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     mouseblocked=true;
     glfwSetWindowSizeCallback(window, window_reshape_callback);

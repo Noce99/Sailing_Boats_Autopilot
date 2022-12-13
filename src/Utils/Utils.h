@@ -9,9 +9,9 @@ using namespace std;
 void printShaderLog(GLuint);
 void printProgramLog(int);
 bool checkOpenGLError();
-string readShaderSource(const char *);
+string readShaderSource(string);
 
-GLuint createShaderProgram(char * vertShaderStrName, char * fragShaderStrName){
+GLuint createShaderProgram(string vertShaderStrName, string fragShaderStrName){
     GLint vertCompiled;
     GLint fragCompiled;
     GLint linked;
@@ -97,9 +97,9 @@ bool checkOpenGLError(){
   return foundError;
 }
 
-string readShaderSource(const char *filePath){
+string readShaderSource(string filePath){
     string content;
-    ifstream fileStream(filePath, ios::in);
+    ifstream fileStream(filePath.c_str(), ios::in);
     string line = "";
     while (!fileStream.eof()){
       getline(fileStream, line);
@@ -124,4 +124,15 @@ float* goldSpecular(){
 }
 float goldShininess(){
   return 51.2f;
+}
+
+glm::vec3 rotate(float x, float y, float z, glm::vec3 vec, float T){
+  return glm::mat3( x*x+(1-x*x)*cos(T),       x*y*(1-cos(T))-z*sin(T),   x*z*(1-cos(T))+y*sin(T),
+                    x*y*(1-cos(T))+z*sin(T),  y*y+(1-y*y)*cos(T),       y*z*(1-cos(T))-x*sin(T),
+                    x*z*(1-cos(T))-y*sin(T),  y*z*(1-cos(T))+x*sin(T),  z*z+(1-z*z)*cos(T)
+                  )*vec;
+}
+
+string concat(const char * first, const char * second){
+	return string(first) + string(second);
 }

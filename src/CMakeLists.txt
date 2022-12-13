@@ -8,6 +8,8 @@ MESSAGE(STATUS "Build Dir: " ${MY_BUILD_DIR})
 MESSAGE(STATUS "Current Dir: " ${MY_CURRENT_DIR})
 
 file(MAKE_DIRECTORY ${MY_BUILD_DIR}/bin)
+file(MAKE_DIRECTORY ${MY_BUILD_DIR}/bin/shaders)
+file(COPY ${MY_CURRENT_DIR}/../resources DESTINATION ${PROJECT_BINARY_DIR}/bin/)
 
 MACRO(SUBDIRLIST result curdir)
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*)

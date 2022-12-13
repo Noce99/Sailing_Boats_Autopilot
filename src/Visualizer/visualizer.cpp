@@ -13,6 +13,9 @@
 
 using namespace std;
 
+const char  obj_folder []  = "./resources/objs/";
+const char  shader_folder []  = "./shaders/";
+
 #define numVAOs 2
 #define numVBOs 4
 //VAO = Vertex Array Objects
@@ -73,15 +76,15 @@ float * matSpe = goldSpecular();
 float matShi = goldShininess();
 void installLights(glm::mat4);
 
-ImportedModel sail("Sail.obj");
-ImportedModel boat("Sail_Boat_Without_Sails.obj");
-ImportedModel insland("Colline.obj");
-ImportedModel windarrow("Wind_Arrow.obj");
-ImportedModel currentarrow("Current_Arrow.obj");
-ImportedModel forcearrow("Force_Arrow.obj");
-ImportedModel rudder("Rudder.obj");
-ImportedModel clock_momentum("Clock_Momentum.obj");
-ImportedModel anticlock_momentum("AntiClock_Momentum.obj");
+ImportedModel sail(concat(obj_folder, "Sail.obj"));
+ImportedModel boat(concat(obj_folder, "Sail_Boat_Without_Sails.obj"));
+ImportedModel insland(concat(obj_folder, "Colline.obj"));
+ImportedModel windarrow(concat(obj_folder, "Wind_Arrow.obj"));
+ImportedModel currentarrow(concat(obj_folder, "Current_Arrow.obj"));
+ImportedModel forcearrow(concat(obj_folder, "Force_Arrow.obj"));
+ImportedModel rudder(concat(obj_folder, "Rudder.obj"));
+ImportedModel clock_momentum(concat(obj_folder, "Clock_Momentum.obj"));
+ImportedModel anticlock_momentum(concat(obj_folder, "AntiClock_Momentum.obj"));
 
 std::vector<double> recived_values = std::vector<double>(maxnumofvalues);
 double lambda_to_send = 0;
@@ -407,7 +410,7 @@ void setupVertices(void){
 
 
 void init (GLFWwindow* window){
-    renderingProgram = createShaderProgram((char *)"vertShader.glsl",(char *) "fragShader.glsl");
+    renderingProgram = createShaderProgram(concat(shader_folder, "vertShader.glsl"),concat(shader_folder, "fragShader.glsl"));
     cameraX = 30.0f; cameraY = 14.0f; cameraZ = 30.0f;
     boatLocX = 0.0f; boatLocY = 2.0f; boatLocZ = 0.0f;
     setupVertices();
