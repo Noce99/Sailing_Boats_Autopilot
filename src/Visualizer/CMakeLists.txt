@@ -6,6 +6,7 @@ add_executable(world_visualizer world_visualizer.cpp)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Python3 COMPONENTS Development NumPy)
 find_package(OpenCV REQUIRED)
+find_library(soil2 REQUIRED)
 
 target_link_libraries(visualizer Eigen3::Eigen)
 
@@ -28,6 +29,7 @@ target_link_libraries(world_visualizer glfw)
 target_link_libraries(world_visualizer ${GLEW_LIB})
 target_link_libraries(world_visualizer ${GL_LIB})
 target_link_libraries(world_visualizer ${OpenCV_LIBS})
+target_link_libraries(world_visualizer ${soil2})
 
 MACRO(ADDOBJ curdir)
   FILE(GLOB children RELATIVE ${curdir} ${curdir}/*.obj)

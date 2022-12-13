@@ -10,8 +10,13 @@
 #include "Utils.h"
 #include "sphere.cpp"
 #include <opencv2/opencv.hpp>
+#include <SOIL2.h>
 
 using namespace std;
+
+const char  height_images_folder []  = "./resources/height_images/";
+const char  shader_folder []  = "./shaders/";
+const char  photos_folder []  = "./resources/satellite_photos/";
 
 #define numVAOs 2
 #define numVBOs 4
@@ -30,12 +35,13 @@ float lambda, delta;
 float zoom = 3;
 float tmp_X, tmp_Z;
 
-float backmousex=0, backmousey=0;
+float backmousex=100000, backmousey=0;
 bool mouseblocked = false;
 
 glm::vec3 upCamera;
 GLuint renderingProgram; //GLuint è una shortcat per unsigned int
 GLuint simple_renderingProgram;
+GLuint textureProgram;
 GLuint vao[numVAOs];
 vector<GLuint [numVBOs]> vbos(20);
 vector<int> vbos_num_vertices(20);
@@ -75,19 +81,25 @@ void installLights(glm::mat4);
 Sphere sphere = Sphere(1, 30);
 Cube cube = Cube(1, 1);
 
+GLuint satellite_photo;
+GLuint loadTexture(string);
+
 void shape_setup_vertices(Cube c){
     std::vector<glm::vec3> vert = c.getVertices();
     std::vector<glm::vec3> norm = c.getNormalVecs();
+    std::vector<glm::vec2> text = c.getTexture();
     int numVertices = c.getNumVertices();
 
     std::vector<float> pvalues; //vertex positions
     std::vector<float> tvalues; //texture coordinates
     std::vector<float> nvalues; //normal vectors
-
+	
     for (int i=0; i<numVertices; i++){
         pvalues.push_back((vert[i]).x);
         pvalues.push_back((vert[i]).y);
         pvalues.push_back((vert[i]).z);
+        tvalues.push_back((text[i]).x);
+        tvalues.push_back((text[i]).y);
         nvalues.push_back((norm[i]).x);
         nvalues.push_back((norm[i]).y);
         nvalues.push_back((norm[i]).z);
@@ -103,6 +115,11 @@ void shape_setup_vertices(Cube c){
     //VBO for normal vectors
     glBindBuffer(GL_ARRAY_BUFFER, vbos[filled_vbo][1]);
     glBufferData(GL_ARRAY_BUFFER, nvalues.size()*4, &nvalues[0], GL_STATIC_DRAW);
+    
+    //VBO for texture vectors
+    glBindBuffer(GL_ARRAY_BUFFER, vbos[filled_vbo][2]);
+    glBufferData(GL_ARRAY_BUFFER, tvalues.size()*4, &tvalues[0], GL_STATIC_DRAW);
+    
     vbos_num_vertices[filled_vbo] = numVertices;
     filled_vbo++;
 }
@@ -114,8 +131,9 @@ void setupVertices(void){
 
 
 void init (GLFWwindow* window){
-    renderingProgram = createShaderProgram((char *)"vertShader.glsl",(char *) "fragShader.glsl");
-    simple_renderingProgram = createShaderProgram((char *)"simple_vertShader.glsl",(char *) "simple_fragShader.glsl");
+    renderingProgram = createShaderProgram(concat(shader_folder, "vertShader.glsl"),concat(shader_folder, "fragShader.glsl"));
+    simple_renderingProgram = createShaderProgram(concat(shader_folder, "simple_vertShader.glsl"),concat(shader_folder, "simple_fragShader.glsl"));
+    textureProgram = createShaderProgram(concat(shader_folder, "texture_vertShader.glsl"),concat(shader_folder, "texture_fragShader.glsl"));
     cameraX = 0.0f; cameraY = 0.0f; cameraZ = -8.0f;
     setupVertices();
 
@@ -125,8 +143,9 @@ void init (GLFWwindow* window){
     pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); //1.0472 radians = 60 degrees
     lookingDirX = 0; lookingDirY = 0; lookingDirZ = 1;
     lambda = 0; delta = 0;
+    satellite_photo = loadTexture(concat(photos_folder, "Noce.png"));
 }
-
+    
 void display_vbo(int i, double x, double y, double z){
     glUseProgram(renderingProgram);
     mMat = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
@@ -187,6 +206,43 @@ void simple_display_vbo(int i, double x, double y, double z, double scale){
     glDrawArrays(GL_TRIANGLES, 0, vbos_num_vertices[i]);
 }
 
+void display_vbo_texture(int i, double x, double y, double z){
+    glUseProgram(textureProgram);
+    mMat = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
+    mvMat = vMat * mMat;
+
+    //Build matrix for trasforming vectors
+    invTrMat = glm::transpose(glm::inverse(mvMat));
+
+    //Spedisco matrici allo shader
+    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+    glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+
+    //Associazione VBO
+    glBindBuffer(GL_ARRAY_BUFFER, vbos[i][0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbos[i][1]);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(1);
+
+	glBindBuffer(GL_ARRAY_BUFFER, vbos[i][2]);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(2);
+	
+	glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, satellite_photo);
+    
+    // glEnable(GL_CULL_FACE);
+    glFrontFace(GL_CCW);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+
+    glDrawArrays(GL_TRIANGLES, 0, vbos_num_vertices[i]);
+}
+
 void display (GLFWwindow* window, double currentTime){
     glClear(GL_DEPTH_BUFFER_BIT);
     glClearColor(0.0, 0.0, 0.0, 1.0);
@@ -233,7 +289,9 @@ void display (GLFWwindow* window, double currentTime){
      							-LIGHTDISTANCE*tmp_X*tmp_X*tmp_Z*(1-cos(delta))+LIGHTDISTANCE*tmp_Z*(cos(delta)+tmp_X*tmp_X*(1-cos(delta))));
     installLights(vMat);
 
-    display_vbo(0, 0, 0, 0);
+    //display_vbo(0, 0, 0, 0);
+    display_vbo_texture(0, 0, 0, 0);
+    display_vbo_texture(1, 0, 0, 0);
     simple_display_vbo(1, sphere.get_index(0)[0], sphere.get_index(0)[1], sphere.get_index(0)[2], 0.01);
     simple_display_vbo(1, sphere.get_index(1000)[0], sphere.get_index(1000)[1], sphere.get_index(1000)[2], 0.01);
 }
@@ -319,31 +377,24 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 }
 
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods){
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE){
+    	backmousex = 100000;
+    }
+}
+
+float thetax, thetay;
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos){
-  if (mouseblocked){
-    glm::vec3 newlookingDir(lookingDirX, lookingDirY, lookingDirZ);
-    float thetax = PASSOVISUALE*abs(backmousex-xpos)/50;
-    float thetay = PASSOVISUALE*abs(backmousey-ypos)/200;
-
-    if (xpos>backmousex){
-      newlookingDir = rotate(0, 1, 0, glm::vec3(lookingDirX, lookingDirY, lookingDirZ), thetax);
-    }
-    if (xpos<backmousex){
-      newlookingDir = rotate(0, 1, 0, glm::vec3(lookingDirX, lookingDirY, lookingDirZ), -thetax);
-    }
-    if (ypos>backmousey && atan(lookingDirY/(sqrt(lookingDirX*lookingDirX+lookingDirZ*lookingDirZ)))>-0.785398f){
-      newlookingDir = rotate(-(lookingDirZ)/sqrt(lookingDirX*lookingDirX+lookingDirZ*lookingDirZ), 0, (lookingDirX)/sqrt(lookingDirX*lookingDirX+lookingDirZ*lookingDirZ), glm::vec3(lookingDirX, lookingDirY, lookingDirZ), thetay);
-    }
-    if (ypos<backmousey && atan(lookingDirY/(sqrt(lookingDirX*lookingDirX+lookingDirZ*lookingDirZ)))<0.785398f){
-      newlookingDir = rotate(-(lookingDirZ)/sqrt(lookingDirX*lookingDirX+lookingDirZ*lookingDirZ), 0, (lookingDirX)/sqrt(lookingDirX*lookingDirX+lookingDirZ*lookingDirZ), glm::vec3(lookingDirX, lookingDirY, lookingDirZ), -thetay);
-    }
-    lookingDirX = newlookingDir.x;
-    lookingDirY = newlookingDir.y;
-    lookingDirZ = newlookingDir.z;
-
-    backmousex = xpos;
-    backmousey = ypos;
-  }
+	if (mouseblocked && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)==1){
+		if (backmousex != 100000){
+			thetax = PASSOVISUALE*(backmousex-xpos)/50;
+			thetay = PASSOVISUALE*(backmousey-ypos)/200;
+			delta -= thetay;
+			lambda -= thetax;
+		}
+		backmousex = xpos;
+		backmousey = ypos;
+	}
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset){
@@ -353,18 +404,30 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset){
 	}
 }
 
+GLuint loadTexture(string texImagePath){
+	GLuint textureID;
+	textureID = SOIL_load_OGL_texture(texImagePath.c_str(), SOIL_LOAD_AUTO,
+		SOIL_CREATE_NEW_ID,
+		SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+	);
+	if (textureID == 0){
+		std::cout << "Impossible to open: " << texImagePath << std::endl;
+	}
+	return textureID;
+}
 
 int main(void){
 
 	cv::Mat image;
-    image = cv::imread("n=20.png", 1 );
+    image = cv::imread(concat(height_images_folder, "1.png"), 1 );
     if ( !image.data ){
         printf("No image data \n");
         return -1;
     }
+    cv::Mat small_image = cv::Mat(image, cv::Range(3000, 4000), cv::Range(5000, 7000));
     cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE);
-    cv::imshow("Display Image", image);
-    cv::waitKey(0);
+    //cv::imshow("Display Image", small_image);
+    //cv::waitKey(0);
 
 	
     if (!glfwInit()) {exit(EXIT_FAILURE);}
@@ -379,6 +442,7 @@ int main(void){
     glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
     mouseblocked=true;
     glfwSetWindowSizeCallback(window, window_reshape_callback);
 
