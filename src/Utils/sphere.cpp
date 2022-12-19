@@ -212,6 +212,10 @@ class Cube{
                 texture.push_back(glm::vec2(1.0,1.0));
             }
         }
+        min_x = -1;
+        max_x = 1;
+        min_y = -1;
+        max_y = 1;
         normalize();
     }
     void normalize(){
@@ -234,8 +238,8 @@ class Cube{
             	new_min_y=texture[i].y;
             }
     	}
-    	std::cout << "[" << min_x << "; " << max_x << "] [" << min_y << "; "  << max_y << "]" << std::endl;
-    	std::cout << "[" << new_min_x << "; " << new_max_x << "] [" << new_min_y << "; "  << new_max_y << "]" << std::endl;
+    	std::cout << "Before: [" << min_x << "; " << max_x << "] [" << min_y << "; "  << max_y << "]" << std::endl;
+    	std::cout << "After: [" << new_min_x << "; " << new_max_x << "] [" << new_min_y << "; "  << new_max_y << "]" << std::endl;
     }
     std::vector<glm::vec3> getVertices(){
         return vertices;
@@ -258,6 +262,7 @@ class Cube{
 };
 
 class Sphere: public Cube{
+	double y_lim = 2;
     public:
     Sphere(double side_size, int points_for_side):Cube(side_size, points_for_side){
     	double norm;
@@ -279,18 +284,20 @@ class Sphere: public Cube{
             vertices[i].y = vertices[i].y/norm;
             vertices[i].z = vertices[i].z/norm;
             
-            phi = asin(vertices[i].z);
-            lambda = asin(vertices[i].x/sqrt(1-vertices[i].z));
-            if (vertices[i].y<0){
-            	if (vertices[i].x>0){
-            		lambda += M_PI/2;
-            	}else{
-            		lambda -= M_PI/2;
-            	}
-            }
+            phi = asin(vertices[i].y);
+			lambda = atan2(vertices[i].x, -vertices[i].z);
+            
+            //map_x = lambda;
+            //map_y = log(tan(M_PI/4 + phi/2));
             
             map_x = lambda;
-            map_y = log(tan(M_PI/4 + phi/2));
+            map_y = phi;
+            
+            if (map_y > y_lim){
+            	map_y = y_lim;
+            }else if (map_y < -y_lim){
+            	map_y = -y_lim;
+            }
             
             texture[i].x = map_x;
             texture[i].y = map_y;
@@ -306,6 +313,8 @@ class Sphere: public Cube{
             }else if (map_y<min_y){
             	min_y=map_y;
             }
+            
+            
             
             
             normalVecs[i].x = vertices[i].x;

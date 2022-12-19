@@ -9,8 +9,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "Utils.h"
 #include "sphere.cpp"
+#include "texture_loading.cpp"
 #include <opencv2/opencv.hpp>
-#include <SOIL2.h>
 
 using namespace std;
 
@@ -48,7 +48,7 @@ vector<int> vbos_num_vertices(20);
 int filled_vbo = 0;
 
 //Variabili allocate in init così non devono essere allocate durante il rendering
-GLuint mvLoc, projLoc, nLoc, simple_mvLoc , simple_projLoc;
+GLuint mvLoc, projLoc, nLoc, simple_mvLoc, simple_projLoc, texture_mvLoc, texture_projLoc, texture_nLoc;
 
 GLuint globalAmbLoc, ambLoc, diffLoc, specLoc, posLoc, mAmbLoc, mDiffLoc, mSpecLoc, mShiLoc;
 int width, height;
@@ -78,11 +78,11 @@ float * matSpe = goldSpecular();
 float matShi = goldShininess();
 void installLights(glm::mat4);
 
-Sphere sphere = Sphere(1, 30);
+Sphere sphere = Sphere(1, 100);
 Cube cube = Cube(1, 1);
 
-GLuint satellite_photo;
-GLuint loadTexture(string);
+std::vector<GLuint> textures_id;
+void textures();
 
 void shape_setup_vertices(Cube c){
     std::vector<glm::vec3> vert = c.getVertices();
@@ -131,6 +131,7 @@ void setupVertices(void){
 
 
 void init (GLFWwindow* window){
+	textures();
     renderingProgram = createShaderProgram(concat(shader_folder, "vertShader.glsl"),concat(shader_folder, "fragShader.glsl"));
     simple_renderingProgram = createShaderProgram(concat(shader_folder, "simple_vertShader.glsl"),concat(shader_folder, "simple_fragShader.glsl"));
     textureProgram = createShaderProgram(concat(shader_folder, "texture_vertShader.glsl"),concat(shader_folder, "texture_fragShader.glsl"));
@@ -143,7 +144,6 @@ void init (GLFWwindow* window){
     pMat = glm::perspective(1.0472f, aspect, 0.1f, 1000.0f); //1.0472 radians = 60 degrees
     lookingDirX = 0; lookingDirY = 0; lookingDirZ = 1;
     lambda = 0; delta = 0;
-    satellite_photo = loadTexture(concat(photos_folder, "Noce.png"));
 }
     
 void display_vbo(int i, double x, double y, double z){
@@ -206,7 +206,7 @@ void simple_display_vbo(int i, double x, double y, double z, double scale){
     glDrawArrays(GL_TRIANGLES, 0, vbos_num_vertices[i]);
 }
 
-void display_vbo_texture(int i, double x, double y, double z){
+void display_vbo_texture(int i, GLuint tex_id, double x, double y, double z){
     glUseProgram(textureProgram);
     mMat = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, z));
     mvMat = vMat * mMat;
@@ -215,9 +215,9 @@ void display_vbo_texture(int i, double x, double y, double z){
     invTrMat = glm::transpose(glm::inverse(mvMat));
 
     //Spedisco matrici allo shader
-    glUniformMatrix4fv(mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
-    glUniformMatrix4fv(nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
+    glUniformMatrix4fv(texture_mvLoc, 1, GL_FALSE, glm::value_ptr(mvMat));
+    glUniformMatrix4fv(texture_projLoc, 1, GL_FALSE, glm::value_ptr(pMat));
+    glUniformMatrix4fv(texture_nLoc, 1, GL_FALSE, glm::value_ptr(invTrMat));
 
     //Associazione VBO
     glBindBuffer(GL_ARRAY_BUFFER, vbos[i][0]);
@@ -233,7 +233,7 @@ void display_vbo_texture(int i, double x, double y, double z){
     glEnableVertexAttribArray(2);
 	
 	glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, satellite_photo);
+    glBindTexture(GL_TEXTURE_2D, tex_id);
     
     // glEnable(GL_CULL_FACE);
     glFrontFace(GL_CCW);
@@ -244,56 +244,59 @@ void display_vbo_texture(int i, double x, double y, double z){
 }
 
 void display (GLFWwindow* window, double currentTime){
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.0, 0.0, 0.0, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT); //Clear the background to black
-    glUseProgram(renderingProgram);
-    //glEnable(GL_CULL_FACE);
+	glClear(GL_DEPTH_BUFFER_BIT);
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT); //Clear the background to black
+	glUseProgram(renderingProgram);
+	//glEnable(GL_CULL_FACE);
 
-    //Getto le uniform
-    mvLoc = glGetUniformLocation(renderingProgram, "mv_matrix");
-    projLoc = glGetUniformLocation(renderingProgram, "proj_matrix");
-    nLoc = glGetUniformLocation(renderingProgram, "norm_matrix");
-    simple_mvLoc = glGetUniformLocation(simple_renderingProgram, "mv_matrix");
-    simple_projLoc = glGetUniformLocation(simple_renderingProgram, "proj_matrix");
+	//Getto le uniform
+	mvLoc = glGetUniformLocation(renderingProgram, "mv_matrix");
+	projLoc = glGetUniformLocation(renderingProgram, "proj_matrix");
+	nLoc = glGetUniformLocation(renderingProgram, "norm_matrix");
+	simple_mvLoc = glGetUniformLocation(simple_renderingProgram, "mv_matrix");
+	simple_projLoc = glGetUniformLocation(simple_renderingProgram, "proj_matrix");
+	texture_mvLoc = glGetUniformLocation(textureProgram, "mv_matrix");
+	texture_projLoc = glGetUniformLocation(textureProgram, "proj_matrix");
+	texture_nLoc = glGetUniformLocation(textureProgram, "norm_matrix");
 
-    //Aggiorno la posizione della camera
-    //cameraZ = (28+20*cos((float)currentTime))*sin((float)currentTime*0.6);
-    //cameraX = (28+20*cos((float)currentTime))*cos((float)currentTime*0.6);
-    //cameraY = (7+5*cos((float)currentTime));
+	//Aggiorno la posizione della camera
+	//cameraZ = (28+20*cos((float)currentTime))*sin((float)currentTime*0.6);
+	//cameraX = (28+20*cos((float)currentTime))*cos((float)currentTime*0.6);
+	//cameraY = (7+5*cos((float)currentTime));
 
-    //boatLocX = (float)(10*cos((float)currentTime*1));
+	//boatLocX = (float)(10*cos((float)currentTime*1));
 
-    //Costruisco la mvMat
-    tmp_X = cos(lambda);
-    tmp_Z = sin(lambda);
-    cameraX = zoom*tmp_X*(cos(delta)+tmp_Z*tmp_Z*(1-cos(delta)))-zoom*tmp_Z*tmp_Z*tmp_X*(1-cos(delta));
-    cameraY = zoom*tmp_X*tmp_X*sin(delta)+zoom*tmp_Z*tmp_Z*sin(delta);
-    cameraZ = -zoom*tmp_X*tmp_X*tmp_Z*(1-cos(delta))+zoom*tmp_Z*(cos(delta)+tmp_X*tmp_X*(1-cos(delta)));
-   
-    
-    vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(0, 0, 0), glm::vec3(0.0f, 1.0f, 0.0f));
+	//Costruisco la mvMat
+	tmp_X = cos(lambda);
+	tmp_Z = sin(lambda);
+	cameraX = zoom*tmp_X*(cos(delta)+tmp_Z*tmp_Z*(1-cos(delta)))-zoom*tmp_Z*tmp_Z*tmp_X*(1-cos(delta));
+	cameraY = zoom*tmp_X*tmp_X*sin(delta)+zoom*tmp_Z*tmp_Z*sin(delta);
+	cameraZ = -zoom*tmp_X*tmp_X*tmp_Z*(1-cos(delta))+zoom*tmp_Z*(cos(delta)+tmp_X*tmp_X*(1-cos(delta)));
+	   
+		
+	vMat = glm::lookAt(glm::vec3(cameraX, cameraY, cameraZ), glm::vec3(0, 0, 0), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // vMat = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, -8));
-    //glm::mat4 rotation_phi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[2]), glm::vec3(1.0f,0.0f,0.0f));
-    //glm::mat4 rotation_xi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[3]), glm::vec3(0.0f, 1.0f, 0.0f));
-    //mMat = mMat * rotation_xi;
-    //mMat = mMat * rotation_phi;
+	// vMat = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, -8));
+	//glm::mat4 rotation_phi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[2]), glm::vec3(1.0f,0.0f,0.0f));
+	//glm::mat4 rotation_xi = glm::rotate(glm::mat4(1.0f), (float)(recived_values[3]), glm::vec3(0.0f, 1.0f, 0.0f));
+	//mMat = mMat * rotation_xi;
+	//mMat = mMat * rotation_phi;
 
 
-    //Set up lights
-    //currentLightPos = glm::vec3(cos((float)currentTime*5.)*initialLightLoc.x-sin((float)currentTime*5.)*initialLightLoc.z, initialLightLoc.y,
-    //                            cos((float)currentTime*5.)*initialLightLoc.z+sin((float)currentTime*5.)*initialLightLoc.x);
-    currentLightPos = glm::vec3(LIGHTDISTANCE*tmp_X*(cos(delta)+tmp_Z*tmp_Z*(1-cos(delta)))-LIGHTDISTANCE*tmp_Z*tmp_Z*tmp_X*(1-cos(delta)),
-     							LIGHTDISTANCE*tmp_X*tmp_X*sin(delta)+LIGHTDISTANCE*tmp_Z*tmp_Z*sin(delta),
-     							-LIGHTDISTANCE*tmp_X*tmp_X*tmp_Z*(1-cos(delta))+LIGHTDISTANCE*tmp_Z*(cos(delta)+tmp_X*tmp_X*(1-cos(delta))));
-    installLights(vMat);
+	//Set up lights
+	//currentLightPos = glm::vec3(cos((float)currentTime*5.)*initialLightLoc.x-sin((float)currentTime*5.)*initialLightLoc.z, initialLightLoc.y,
+	//                            cos((float)currentTime*5.)*initialLightLoc.z+sin((float)currentTime*5.)*initialLightLoc.x);
+	currentLightPos = glm::vec3(LIGHTDISTANCE*tmp_X*(cos(delta)+tmp_Z*tmp_Z*(1-cos(delta)))-LIGHTDISTANCE*tmp_Z*tmp_Z*tmp_X*(1-cos(delta)),
+		 							LIGHTDISTANCE*tmp_X*tmp_X*sin(delta)+LIGHTDISTANCE*tmp_Z*tmp_Z*sin(delta),
+		 							-LIGHTDISTANCE*tmp_X*tmp_X*tmp_Z*(1-cos(delta))+LIGHTDISTANCE*tmp_Z*(cos(delta)+tmp_X*tmp_X*(1-cos(delta))));
+	installLights(vMat);
 
-    //display_vbo(0, 0, 0, 0);
-    display_vbo_texture(0, 0, 0, 0);
-    display_vbo_texture(1, 0, 0, 0);
-    simple_display_vbo(1, sphere.get_index(0)[0], sphere.get_index(0)[1], sphere.get_index(0)[2], 0.01);
-    simple_display_vbo(1, sphere.get_index(1000)[0], sphere.get_index(1000)[1], sphere.get_index(1000)[2], 0.01);
+	//display_vbo(0, 0, 0, 0);
+	display_vbo_texture(0, textures_id[0], 0, 0, 0);
+	//display_vbo_texture(1, 0, 0, 0);
+	simple_display_vbo(1, sphere.get_index(0)[0], sphere.get_index(0)[1], sphere.get_index(0)[2], 0.01);
+	simple_display_vbo(1, sphere.get_index(1000)[0], sphere.get_index(1000)[1], sphere.get_index(1000)[2], 0.01);
 }
 
 void installLights(glm::mat4 vMat){
@@ -348,9 +351,15 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
     if (glfwGetKey(window, 265) == GLFW_PRESS){//freccia su
 		delta -= PASSOVISUALE;
+		if (delta < -M_PI/2){
+			delta = -M_PI/2+0.001;
+		}
     }
     if (glfwGetKey(window, 264) == GLFW_PRESS){//freccia giu
 		delta += PASSOVISUALE;
+		if (delta > M_PI/2){
+			delta = M_PI/2-0.001;
+		}
     }
     if (glfwGetKey(window, 263) == GLFW_PRESS){//freccia sinistra
 		lambda += PASSOVISUALE;
@@ -391,6 +400,11 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 			thetay = PASSOVISUALE*(backmousey-ypos)/200;
 			delta -= thetay;
 			lambda -= thetax;
+			if (delta < -M_PI/2){
+				delta = -M_PI/2+0.001;
+			}else if (delta > M_PI/2){
+				delta = M_PI/2-0.001;
+			}
 		}
 		backmousex = xpos;
 		backmousey = ypos;
@@ -404,28 +418,24 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset){
 	}
 }
 
-GLuint loadTexture(string texImagePath){
-	GLuint textureID;
-	textureID = SOIL_load_OGL_texture(texImagePath.c_str(), SOIL_LOAD_AUTO,
-		SOIL_CREATE_NEW_ID,
-		SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
-	);
-	if (textureID == 0){
-		std::cout << "Impossible to open: " << texImagePath << std::endl;
-	}
-	return textureID;
+void textures(){
+	preLoadTexture(concat(photos_folder, "Planisfero_Carino.png"));
+	preLoadTexture(concat(photos_folder, "Planisfero.jpg"));
+	textures_id = loadTextures();
 }
 
 int main(void){
+	//my_fork_pipe_test();
+	//exit(1);
 
-	cv::Mat image;
+	/*cv::Mat image;
     image = cv::imread(concat(height_images_folder, "1.png"), 1 );
     if ( !image.data ){
         printf("No image data \n");
         return -1;
     }
     cv::Mat small_image = cv::Mat(image, cv::Range(3000, 4000), cv::Range(5000, 7000));
-    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE);
+    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE);*/
     //cv::imshow("Display Image", small_image);
     //cv::waitKey(0);
 
@@ -447,7 +457,6 @@ int main(void){
     glfwSetWindowSizeCallback(window, window_reshape_callback);
 
     init(window);
-
     while (!glfwWindowShouldClose(window)) {
         display(window, glfwGetTime());
         glfwSwapBuffers(window);

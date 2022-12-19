@@ -1,0 +1,2 @@
+List of Projections: https://en.wikipedia.org/wiki/List_of_map_projections
+Equirectangular projection: https://en.wikipedia.org/wiki/Equirectangular_projection
